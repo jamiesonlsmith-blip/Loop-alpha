@@ -1,7 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#116b3a"><title>Loop Alpha</title>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#116b3a">
+<title>Loop Alpha</title>
   <style>
     :root{--green:#116b3a;--ink:#17221b;--muted:#667069;--paper:#f5f4ed;--yellow:#ffd54f;--red:#e53935;--line:#dfe5df;--shadow:0 12px 36px #14351f18}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--paper)}button,input{font:inherit}button{cursor:pointer}
     .hero{min-height:100vh;background:linear-gradient(#fffffff0,#ffffffe8),url('https://tile.openstreetmap.org/12/1100/1640.png');background-size:cover;background-attachment:fixed;padding:22px 22px 108px}.top{display:flex;align-items:center;gap:15px;max-width:900px;margin:auto}.menu{font-size:25px;background:#fff;border:0;border-radius:14px;padding:10px 14px;box-shadow:0 6px 20px #0002}.logo{font-size:32px;font-weight:900;color:var(--green)}.tag,.meta{font-size:13px;color:var(--muted)}
@@ -18,24 +21,482 @@
     .section-head{display:flex;align-items:end;justify-content:space-between;gap:14px;margin:28px 2px 13px}.section-head h2{margin:0;font-size:23px}.section-head p{margin:4px 0 0;color:var(--muted);font-size:14px}.text-action{border:0;background:transparent;color:var(--green);font-weight:850}.category-rail{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(138px,1fr);gap:11px;overflow-x:auto;padding:1px 1px 8px;scrollbar-width:none}.category-rail::-webkit-scrollbar{display:none}.category-tile{min-height:138px;border:0;border-radius:21px;padding:16px;text-align:left;color:#fff;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 9px 22px #18352218}.category-tile span{font-size:28px}.category-tile b{font-size:16px}.food{background:linear-gradient(145deg,#dc4038,#9e211e)}.health{background:linear-gradient(145deg,#178356,#075c39)}.parks{background:linear-gradient(145deg,#75a83b,#356d20)}.home-services{background:linear-gradient(145deg,#e6a91e,#bd6e0b)}.auto{background:linear-gradient(145deg,#456571,#223c46)}
     .feed-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.7fr);gap:18px}.feed{display:grid;gap:14px}.feed-card,.side-card{background:#fff;border:1px solid #e0e6e1;border-radius:22px;box-shadow:0 7px 24px #1835220b}.feed-card{overflow:hidden}.feed-top{display:grid;grid-template-columns:46px 1fr auto;gap:11px;align-items:center;padding:17px}.feed-avatar{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,var(--yellow),#f0a21d);font-weight:900;color:#233729;border:3px solid #edf7f0}.feed-user b{display:block}.feed-user small{color:var(--muted)}.rep-pill{background:#e9f6ed;color:var(--green);border-radius:999px;padding:6px 9px;font-size:12px;font-weight:850}.place-banner{padding:20px;background:linear-gradient(130deg,#edf8ef,#fff9dc);border-block:1px solid #e4eadf}.place-line{display:flex;justify-content:space-between;gap:12px;align-items:start}.place-line h3{margin:0;font-size:22px}.loop-score{background:var(--green);color:white;border-radius:14px;padding:8px 10px;text-align:center;font-weight:900}.loop-score small{display:block;font-size:9px;font-weight:700;color:#d9f0df}.feed-copy{padding:17px}.feed-copy p{margin:0 0 14px;line-height:1.55}.feedback-row{display:flex;border-top:1px solid #e5e9e6}.feedback-row button{flex:1;border:0;background:#fff;padding:12px;color:#536057;font-weight:800}.feedback-row button+button{border-left:1px solid #e5e9e6}.side-stack{display:grid;gap:14px;align-content:start}.side-card{padding:18px}.side-card h3{margin:0 0 4px}.side-card p{font-size:14px;color:var(--muted);line-height:1.45}.pulse-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #e6ebe7}.pulse-row strong{color:var(--green)}.create-prompt{display:flex;gap:10px;align-items:center;background:#fff;padding:13px;border-radius:18px;border:1px solid #e0e6e1;margin-bottom:14px}.mini-avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-weight:900}.prompt-button{flex:1;border:1px solid #d6ddd7;background:#f7f9f7;border-radius:999px;padding:11px 15px;text-align:left;color:#667069}
     .drawer{width:min(90vw,360px);padding:0;overflow-y:auto}.drawer-head{position:sticky;top:0;background:#fff;padding:18px 20px;margin:0;border-bottom:1px solid var(--line);z-index:1}.drawer-profile{display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:center;padding:18px 20px;background:#f2f8f3}.drawer-avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-weight:900}.drawer-profile b,.drawer-profile small{display:block}.drawer-profile small{color:var(--muted);margin-top:3px}.drawer-section{padding:10px 0;border-bottom:1px solid var(--line)}.drawer-label{padding:7px 20px;color:#849087;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.drawer-link,.drawer-toggle{width:100%;border:0;background:#fff;display:flex;align-items:center;gap:13px;padding:13px 20px;text-align:left;color:#2d3730;font-weight:720}.drawer-link:hover,.drawer-toggle:hover{background:#f2f7f3}.drawer-link .mi,.drawer-toggle .mi{width:28px;text-align:center;font-size:20px}.drawer-toggle .plus{margin-left:auto;color:var(--green);font-size:23px}.drawer-sub{display:none;background:#f7faf7;padding:3px 0}.drawer-sub.open{display:block}.drawer-sub button{width:100%;border:0;background:transparent;padding:11px 20px 11px 61px;text-align:left;color:#546158}
+    .place-page,.saved-page{display:none;min-height:100vh;background:#f1f4f1;padding:0 0 108px}.place-page.active,.saved-page.active{display:block}.detail-header{background:#fff;border-bottom:1px solid var(--line);padding:12px max(16px,calc((100vw - 900px)/2));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2}.detail-shell{max-width:900px;margin:auto;padding:18px 16px}.place-cover{min-height:260px;border-radius:28px;padding:28px;display:flex;align-items:flex-end;color:white;background:linear-gradient(135deg,#0b3325cc,#13824dcc),url('https://tile.openstreetmap.org/12/1100/1640.png');background-size:cover;box-shadow:var(--shadow)}.place-cover h1{font-size:clamp(32px,6vw,52px);margin:0 0 7px;letter-spacing:-1px}.place-cover p{margin:0;color:#e4f5e9}.detail-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:16px}.detail-card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px}.score-line{display:flex;align-items:center;gap:13px}.score-big{width:74px;height:74px;border-radius:20px;background:var(--green);color:#fff;display:grid;place-items:center;font-size:28px;font-weight:950}.score-copy b,.score-copy small{display:block}.score-copy small{color:var(--muted);margin-top:4px}.trust-list{padding:0;list-style:none;margin:15px 0 0}.trust-list li{padding:11px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}.place-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.place-actions button{border:0;border-radius:14px;padding:12px;font-weight:850}.save-action{background:#fff4c8;color:#6b4b00}.experience-action{background:var(--green);color:#fff}.experience-card{margin-top:12px;border-top:1px solid var(--line);padding-top:14px}.experience-card p{line-height:1.5;margin:8px 0}.saved-list{display:grid;gap:12px}.saved-item{background:#fff;border:1px solid var(--line);border-radius:19px;padding:17px;display:flex;align-items:center;justify-content:space-between;gap:12px}.saved-item h3{margin:0 0 4px}.saved-empty{text-align:center;background:#fff;border-radius:22px;padding:44px 20px;color:var(--muted)}.feedback-row button.selected{background:#e5f5ea;color:var(--green)}.feedback-row button.negative.selected{background:#fff0ee;color:#b9362f}.toast{position:fixed;z-index:10;left:50%;bottom:90px;transform:translate(-50%,20px);background:#17221b;color:#fff;padding:11px 16px;border-radius:999px;font-weight:750;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}textarea,select{font:inherit}.field textarea,.field select{width:100%;border:1px solid #cdd7cf;border-radius:12px;padding:12px;background:#fff}.field textarea{min-height:120px;resize:vertical}.rating-choice{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.rating-choice button{border:1px solid #cdd7cf;background:#fff;border-radius:10px;padding:9px 3px;font-weight:850}.rating-choice button.on{background:var(--green);color:#fff;border-color:var(--green)}
     dialog{border:0;border-radius:22px;padding:0;max-width:520px;width:calc(100% - 32px);box-shadow:0 24px 70px #0004}dialog::backdrop{background:#0e1f1780}.dialog-inner{padding:24px}.dialog-inner h2{margin-top:0}.field{margin:14px 0}.field label{display:block;font-size:13px;font-weight:800;margin-bottom:6px}.field input{width:100%;border:1px solid #cdd7cf;border-radius:12px;padding:12px}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.secondary,.primary{border:0;border-radius:12px;padding:10px 14px;font-weight:800}.secondary{background:#edf1ed}.primary{background:var(--green);color:white}
-    @media(max-width:760px){.app-header{padding:10px 13px}.header-logo{font-size:26px}.header-actions .icon-button:first-child{display:none}.home-shell{padding:12px 0 24px}.discovery-hero{border-radius:0;min-height:335px;padding:28px 17px}.hero-content h1{font-size:40px}.search button{padding:0 16px}.section-head{padding:0 16px;margin-top:24px}.category-rail{padding:1px 16px 8px;grid-auto-columns:145px}.feed-layout{grid-template-columns:1fr}.side-stack{padding:0 13px}.create-prompt{margin:0 13px 13px}.feed-card{border-radius:0;border-inline:0}.feed-layout>.feed{gap:10px}.profile-page,.activity-page{padding:14px 14px 102px}.profile-hero{grid-template-columns:auto 1fr;padding:20px}.score-ring{grid-column:1/-1;width:100%;height:auto;border-radius:16px;background:#ffffff18;padding:13px}.score-ring:after{display:none}.score-value{display:flex;justify-content:center;gap:8px;align-items:baseline}.score-value small{display:inline}.profile-grid{grid-template-columns:1fr}.activity-list{grid-template-columns:1fr}.identity h1{font-size:22px}.avatar{width:68px;height:68px}.activity{grid-column:auto}.activity-summary{grid-template-columns:1fr 1fr}.summary-card:last-child{grid-column:1/-1}.update{grid-template-columns:44px 1fr}.update time{grid-column:2}.bottom-nav{border-radius:0}}
+    @media(max-width:760px){.app-header{padding:10px 13px}.header-logo{font-size:26px}.header-actions .icon-button:first-child{display:none}.home-shell{padding:12px 0 24px}.discovery-hero{border-radius:0;min-height:335px;padding:28px 17px}.hero-content h1{font-size:40px}.search button{padding:0 16px}.section-head{padding:0 16px;margin-top:24px}.category-rail{padding:1px 16px 8px;grid-auto-columns:145px}.feed-layout{grid-template-columns:1fr}.side-stack{padding:0 13px}.create-prompt{margin:0 13px 13px}.feed-card{border-radius:0;border-inline:0}.feed-layout>.feed{gap:10px}.profile-page,.activity-page{padding:14px 14px 102px}.profile-hero{grid-template-columns:auto 1fr;padding:20px}.score-ring{grid-column:1/-1;width:100%;height:auto;border-radius:16px;background:#ffffff18;padding:13px}.score-ring:after{display:none}.score-value{display:flex;justify-content:center;gap:8px;align-items:baseline}.score-value small{display:inline}.profile-grid,.detail-grid{grid-template-columns:1fr}.activity-list{grid-template-columns:1fr}.identity h1{font-size:22px}.avatar{width:68px;height:68px}.activity{grid-column:auto}.activity-summary{grid-template-columns:1fr 1fr}.summary-card:last-child{grid-column:1/-1}.update{grid-template-columns:44px 1fr}.update time{grid-column:2}.bottom-nav{border-radius:0}.place-cover{border-radius:0;margin:0 -16px;min-height:235px}.detail-shell{padding-top:0}}
   </style>
 </head>
 <body>
-  <div id="scrim" class="scrim" onclick="closeMenu()"></div><aside id="drawer" class="drawer" aria-label="Main menu"><div class="drawer-head"><div class="brand-lockup"><span class="brand-mark">L</span><span class="header-logo">loop</span></div><button class="close" onclick="closeMenu()" aria-label="Close menu">×</button></div><div class="drawer-profile"><span class="drawer-avatar">JS</span><span><b>Jameson Smith</b><small>Reputation 82 · Founding Explorer</small></span></div><div class="drawer-section"><div class="drawer-label">Discover</div><button class="drawer-link" onclick="showHome()"><span class="mi">⌂</span>Home</button><button class="drawer-link" onclick="showExplore()"><span class="mi">⌕</span>Explore nearby</button><button class="drawer-link"><span class="mi">♥</span>Saved places</button><button class="drawer-link"><span class="mi">↻</span>Recent searches</button></div><div class="drawer-section"><div class="drawer-label">Your Loops</div><button class="drawer-toggle" onclick="toggleMenuGroup('loopMenu',this)"><span class="mi">◎</span>Switch your Loop<span class="plus">+</span></button><div id="loopMenu" class="drawer-sub"><button>Current Loop · Nearby</button><button>Home Loop · South Florida</button><button>Explore outside your Loop</button></div></div><div class="drawer-section"><div class="drawer-label">Contribute</div><button class="drawer-link"><span class="mi">＋</span>Share an experience</button><button class="drawer-link"><span class="mi">⌖</span>Add a place</button></div><div class="drawer-section"><div class="drawer-label">Account</div><button class="drawer-link" onclick="showProfile()"><span class="mi">☺</span>Profile & Reputation</button><button class="drawer-link" onclick="showActivity()"><span class="mi">◉</span>Activity & responses</button><button class="drawer-link"><span class="mi">⚙</span>Settings & privacy</button><button class="drawer-toggle" onclick="toggleMenuGroup('helpMenu',this)"><span class="mi">?</span>Help & information<span class="plus">+</span></button><div id="helpMenu" class="drawer-sub"><button>How Loop works</button><button>Community standards</button><button>Contact support</button></div></div></aside>
-  <main id="home" class="hero"><header class="app-header"><button class="menu" onclick="openMenu()" aria-label="Open menu">☰</button><div class="brand-lockup"><span class="brand-mark">L</span><span class="header-logo">loop</span></div><div class="header-actions"><button class="icon-button" onclick="showExplore()" aria-label="Search">⌕</button><button class="icon-button" onclick="showActivity()" aria-label="Notifications">♢<span class="notice-dot">3</span></button></div></header><div class="home-shell"><section class="discovery-hero"><div class="hero-content"><span class="eyebrow">● Current Loop · South Florida</span><h1>Find what fits your Loop.</h1><p>Search real places, then decide with experiences from people who know the area.</p><div class="search"><input id="q" aria-label="Search nearby places" placeholder="What are you looking for nearby?"><button onclick="findPlaces()">Search</button></div><div class="status" id="status">Allow location to discover real places around you.</div></div></section><div id="results" class="cards"></div><div class="section-head"><div><h2>Explore around you</h2><p>Quick paths into your everyday decisions</p></div><button class="text-action" onclick="showExplore()">See all</button></div><div class="category-rail"><button class="category-tile food" onclick="quick('restaurant')"><span>🍽</span><b>Restaurants</b></button><button class="category-tile health" onclick="quick('urgent care')"><span>✚</span><b>Medical</b></button><button class="category-tile parks" onclick="quick('park')"><span>♧</span><b>Parks</b></button><button class="category-tile home-services" onclick="quick('home services')"><span>⌂</span><b>Home Services</b></button><button class="category-tile auto" onclick="quick('mechanic')"><span>⚙</span><b>Auto</b></button></div><div class="section-head"><div><h2>Around your Loop</h2><p>Fresh experiences from trusted people nearby</p></div><button class="text-action" onclick="showActivity()">Your activity</button></div><div class="create-prompt"><span class="mini-avatar">JS</span><button class="prompt-button">Share an experience with your Loop…</button></div><div class="feed-layout"><div class="feed"><article class="feed-card"><div class="feed-top"><span class="feed-avatar">MF</span><span class="feed-user"><b>Maria Flores</b><small>Restaurant contributor · 2h</small></span><span class="rep-pill">Rep 91</span></div><div class="place-banner"><div class="place-line"><div><h3>Harbor Kitchen</h3><span class="meta">Seafood · Fort Lauderdale · 1.8 mi</span></div><span class="loop-score">9.1<small>LOOP RATING</small></span></div></div><div class="feed-copy"><p>Perfect for a relaxed dinner. The patio gets quieter after 7:30, and the staff was excellent with our larger group.</p><span class="confirm">24 people agreed · High confidence</span></div><div class="feedback-row"><button>✓ Agree</button><button>≈ Didn't match</button><button>♡ Save</button></div></article><article class="feed-card"><div class="feed-top"><span class="feed-avatar">DK</span><span class="feed-user"><b>David Kim</b><small>Home Services expert · 5h</small></span><span class="rep-pill">Rep 87</span></div><div class="place-banner"><div class="place-line"><div><h3>Coastal Air & Electric</h3><span class="meta">Home Services · Plantation · 3.4 mi</span></div><span class="loop-score">8.8<small>LOOP RATING</small></span></div></div><div class="feed-copy"><p>They explained the repair before starting, arrived inside the promised window, and the final price matched the estimate.</p><span class="confirm">18 people found this useful · Verified visit</span></div><div class="feedback-row"><button>✓ Agree</button><button>≈ Didn't match</button><button>♡ Save</button></div></article></div><aside class="side-stack"><section class="side-card"><h3>Your Loop pulse</h3><p>What people nearby are deciding right now.</p><div class="pulse-row"><span>Restaurant activity</span><strong>+18%</strong></div><div class="pulse-row"><span>New trusted places</span><strong>12</strong></div><div class="pulse-row"><span>Experiences today</span><strong>46</strong></div></section><section class="side-card"><h3>Build your reputation</h3><p>One more detailed experience can move your Restaurant expertise closer to Expert.</p><button class="primary">Share an experience</button></section></aside></div></div></main>
-  <section id="profile" class="profile-page" aria-labelledby="profileName"><div class="profile-shell"><div class="profile-nav"><button class="back" onclick="showHome()">← Home</button><div class="logo">loop</div><button class="edit" onclick="openEditor()">Edit profile</button></div><div class="profile-hero"><div id="avatar" class="avatar">JS</div><div class="identity"><h1 id="profileName">Jameson Leon Smith</h1><p id="profileDetails">Sales Manager · South Florida</p><span class="badge">Founding Explorer</span></div><button class="score-ring" onclick="document.getElementById('scoreInfo').showModal()" aria-label="Reputation score 82. Open score details"><span class="score-value">82<small>Reputation</small></span></button></div>
-    <div class="profile-grid"><section class="panel"><h2>How your reputation is earned</h2><p class="panel-note">Your score grows when your experiences are specific, recent, and confirmed by people in the Loop.</p><div class="metric"><div class="metric-top"><span>Community confirmations</span><span>88%</span></div><div class="bar"><span style="width:88%"></span></div></div><div class="metric"><div class="metric-top"><span>Useful details</span><span>84%</span></div><div class="bar"><span style="width:84%"></span></div></div><div class="metric"><div class="metric-top"><span>Contribution consistency</span><span>76%</span></div><div class="bar"><span style="width:76%"></span></div></div><div class="metric"><div class="metric-top"><span>Recent activity</span><span>71%</span></div><div class="bar"><span style="width:71%"></span></div></div></section>
-    <section class="panel"><h2>Category expertise</h2><p class="panel-note">Expertise is earned from your activity in each category.</p><div class="expertise"><div class="expertise-row"><span class="expertise-icon">🍽️</span><span><b>Restaurants</b><small>18 contributions</small></span><span class="level">Trusted</span></div><div class="expertise-row"><span class="expertise-icon">🛋️</span><span><b>Home & Furniture</b><small>14 contributions</small></span><span class="level">Trusted</span></div><div class="expertise-row"><span class="expertise-icon">🌴</span><span><b>South Florida</b><small>11 contributions</small></span><span class="level">Rising</span></div></div></section>
-    <section class="panel activity"><h2>Recent contributions</h2><p class="panel-note">Evidence behind your reputation, visible to the community.</p><div class="activity-list"><article class="activity-card"><div class="place-name">Harbor Kitchen</div><span class="confirm">12 people agreed</span><p>Great for a relaxed dinner; the patio is quieter after 7:30.</p><span class="date">Restaurant · 3 days ago</span></article><article class="activity-card"><div class="place-name">Oak & Home</div><span class="confirm">9 people found this useful</span><p>Helpful service and strong fabric choices. Ask about delivery timing first.</p><span class="date">Home & Furniture · 1 week ago</span></article><article class="activity-card"><div class="place-name">Vista Park</div><span class="confirm">7 people agreed</span><p>Easy parking before 10 a.m. and a stroller-friendly path around the lake.</p><span class="date">Parks · 2 weeks ago</span></article></div></section></div></div></section>
-  <section id="activityPage" class="activity-page" aria-labelledby="activityTitle"><div class="activity-shell"><div class="activity-header"><div><div class="logo">loop</div><h1 id="activityTitle">Your activity</h1></div><button class="menu" onclick="openMenu()" aria-label="Open menu">☰</button></div><div class="activity-summary"><div class="summary-card"><strong>28</strong><span>community agreements</span></div><div class="summary-card"><strong>6</strong><span>helpful responses</span></div><div class="summary-card"><strong>+4</strong><span>reputation this month</span></div></div><div class="update-list"><article class="update"><span class="update-icon">✓</span><div><b>Maria agreed with your Harbor Kitchen experience</b><p>Your note about the quieter patio helped with her dinner plans.</p></div><time>Today</time></article><article class="update"><span class="update-icon">↗</span><div><b>Your restaurant expertise increased</b><p>You are getting closer to Expert status in Restaurants.</p></div><time>Yesterday</time></article><article class="update"><span class="update-icon">♥</span><div><b>Oak & Home responded to your experience</b><p>The business confirmed its updated delivery-time guidance.</p></div><time>3 days ago</time></article><article class="update"><span class="update-icon">⌕</span><div><b>Continue your last search</b><p>Family-friendly restaurants near your current Loop.</p></div><time>1 week ago</time></article></div></div></section>
-  <nav class="bottom-nav" aria-label="Primary navigation"><button id="navHome" class="on" onclick="showHome()"><span class="nav-icon">⌂</span><span>Home</span></button><button id="navExplore" onclick="showExplore()"><span class="nav-icon">⌕</span><span>Explore</span></button><button id="navActivity" onclick="showActivity()"><span class="nav-icon">◉</span><span>Activity</span></button><button id="navYou" onclick="showProfile()"><span class="nav-icon">☺</span><span>You</span></button></nav>
-  <dialog id="profileEditor"><form class="dialog-inner" method="dialog" onsubmit="saveProfile(event)"><h2>Edit profile</h2><div class="field"><label for="editName">Name</label><input id="editName" required></div><div class="field"><label for="editRole">Work title</label><input id="editRole"></div><div class="field"><label for="editLocation">Location</label><input id="editLocation"></div><div class="dialog-actions"><button class="secondary" value="cancel">Cancel</button><button class="primary" value="save">Save changes</button></div></form></dialog>
-  <dialog id="scoreInfo"><div class="dialog-inner"><h2>Reputation score: 82</h2><p>This score reflects demonstrated trust—not popularity. Community confirmations, useful details, consistency, and recency all contribute. Category expertise is calculated separately so someone can be trusted for restaurants without automatically being treated as an expert in medical care.</p><div class="dialog-actions"><button class="primary" onclick="document.getElementById('scoreInfo').close()">Got it</button></div></div></dialog>
-  <script>
-    const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim'),home=document.getElementById('home'),profile=document.getElementById('profile'),activityPage=document.getElementById('activityPage'),results=document.getElementById('results'),statusEl=document.getElementById('status'),q=document.getElementById('q');function openMenu(){drawer.classList.add('open');scrim.classList.add('open')}function closeMenu(){drawer.classList.remove('open');scrim.classList.remove('open')}function toggleMenuGroup(id,button){const group=document.getElementById(id),open=group.classList.toggle('open');button.querySelector('.plus').textContent=open?'−':'+'}function setActiveNav(id){document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.toggle('on',button.id===id))}function hidePrimaryViews(){home.style.display='none';profile.classList.remove('active');activityPage.classList.remove('active')}function showHome(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navHome');scrollTo(0,0)}function showExplore(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navExplore');scrollTo(0,0);setTimeout(()=>q.focus(),0)}function showActivity(){closeMenu();hidePrimaryViews();activityPage.classList.add('active');setActiveNav('navActivity');scrollTo(0,0)}function showProfile(){closeMenu();hidePrimaryViews();profile.classList.add('active');setActiveNav('navYou');scrollTo(0,0)}function quick(v){q.value=v;findPlaces()}function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-    function render(items){results.innerHTML=items.map(x=>'<div class="card place"><span class="rating">New</span><br><b>'+esc(x.display_name.split(',')[0])+'</b><p>'+esc(x.type||x.category||'place')+'</p><div class="meta">'+esc(x.display_name)+'</div><p><b>Loop Rating:</b> gathering community experiences</p></div>').join('');statusEl.textContent=items.length+' real place'+(items.length===1?'':'s')+' found near you.'}async function searchAt(term,lat,lon){statusEl.textContent='Searching real places near you…';const d=.18,viewbox=[lon-d,lat+d,lon+d,lat-d].join(','),url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=15&bounded=1&viewbox='+encodeURIComponent(viewbox)+'&q='+encodeURIComponent(term);const r=await fetch(url,{headers:{Accept:'application/json'}});if(!r.ok)throw new Error('search');const items=await r.json();if(!items.length){statusEl.textContent='No nearby matches yet. Try a broader search like “restaurant” or “park”.';results.innerHTML='';return}render(items)}async function findPlaces(){const term=q.value.trim();if(!term)return;statusEl.textContent='Finding your location…';if(!navigator.geolocation){statusEl.textContent='Location is not available in this browser.';return}navigator.geolocation.getCurrentPosition(p=>searchAt(term,p.coords.latitude,p.coords.longitude).catch(()=>statusEl.textContent='Live place search is temporarily unavailable. Try again.'),e=>{statusEl.textContent=e.code===1?'Location permission is off. Allow location for this site, then search again.':'Could not get your location. Try again.'},{enableHighAccuracy:false,timeout:12000,maximumAge:300000})}q.addEventListener('keydown',e=>{if(e.key==='Enter')findPlaces()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
-    function getProfile(){try{return JSON.parse(localStorage.getItem('loopProfile'))||{}}catch{return{}}}function applyProfile(data){const name=data.name||'Jameson Leon Smith',role=data.role||'Sales Manager',location=data.location||'South Florida';document.getElementById('profileName').textContent=name;document.getElementById('profileDetails').textContent=[role,location].filter(Boolean).join(' · ');document.getElementById('avatar').textContent=name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'JS'}function openEditor(){const data=getProfile();document.getElementById('editName').value=data.name||'Jameson Leon Smith';document.getElementById('editRole').value=data.role||'Sales Manager';document.getElementById('editLocation').value=data.location||'South Florida';document.getElementById('profileEditor').showModal()}function saveProfile(event){event.preventDefault();const data={name:document.getElementById('editName').value.trim(),role:document.getElementById('editRole').value.trim(),location:document.getElementById('editLocation').value.trim()};localStorage.setItem('loopProfile',JSON.stringify(data));applyProfile(data);document.getElementById('profileEditor').close()}applyProfile(getProfile());
+  <div id="scrim" class="scrim" onclick="closeMenu()">
+</div>
+<aside id="drawer" class="drawer" aria-label="Main menu">
+<div class="drawer-head">
+<div class="brand-lockup">
+<span class="brand-mark">L</span>
+<span class="header-logo">loop</span>
+</div>
+<button class="close" onclick="closeMenu()" aria-label="Close menu">×</button>
+</div>
+<div class="drawer-profile">
+<span class="drawer-avatar">JS</span>
+<span>
+<b>Jameson Smith</b>
+<small>Reputation 82 · Founding Explorer</small>
+</span>
+</div>
+<div class="drawer-section">
+<div class="drawer-label">Discover</div>
+<button class="drawer-link" onclick="showHome()">
+<span class="mi">⌂</span>Home</button>
+<button class="drawer-link" onclick="showExplore()">
+<span class="mi">⌕</span>Explore nearby</button>
+<button class="drawer-link" onclick="showSaved()">
+<span class="mi">♥</span>Saved places</button>
+<button class="drawer-link">
+<span class="mi">↻</span>Recent searches</button>
+</div>
+<div class="drawer-section">
+<div class="drawer-label">Your Loops</div>
+<button class="drawer-toggle" onclick="toggleMenuGroup('loopMenu',this)">
+<span class="mi">◎</span>Switch your Loop<span class="plus">+</span>
+</button>
+<div id="loopMenu" class="drawer-sub">
+<button>Current Loop · Nearby</button>
+<button>Home Loop · South Florida</button>
+<button>Explore outside your Loop</button>
+</div>
+</div>
+<div class="drawer-section">
+<div class="drawer-label">Contribute</div>
+<button class="drawer-link" onclick="openExperience()">
+<span class="mi">＋</span>Share an experience</button>
+<button class="drawer-link">
+<span class="mi">⌖</span>Add a place</button>
+</div>
+<div class="drawer-section">
+<div class="drawer-label">Account</div>
+<button class="drawer-link" onclick="showProfile()">
+<span class="mi">☺</span>Profile & Reputation</button>
+<button class="drawer-link" onclick="showActivity()">
+<span class="mi">◉</span>Activity & responses</button>
+<button class="drawer-link">
+<span class="mi">⚙</span>Settings & privacy</button>
+<button class="drawer-toggle" onclick="toggleMenuGroup('helpMenu',this)">
+<span class="mi">?</span>Help & information<span class="plus">+</span>
+</button>
+<div id="helpMenu" class="drawer-sub">
+<button>How Loop works</button>
+<button>Community standards</button>
+<button>Contact support</button>
+</div>
+</div>
+</aside>
+  <main id="home" class="hero">
+<header class="app-header">
+<button class="menu" onclick="openMenu()" aria-label="Open menu">☰</button>
+<div class="brand-lockup">
+<span class="brand-mark">L</span>
+<span class="header-logo">loop</span>
+</div>
+<div class="header-actions">
+<button class="icon-button" onclick="showExplore()" aria-label="Search">⌕</button>
+<button class="icon-button" onclick="showActivity()" aria-label="Notifications">♢<span class="notice-dot">3</span>
+</button>
+</div>
+</header>
+<div class="home-shell">
+<section class="discovery-hero">
+<div class="hero-content">
+<span class="eyebrow">● Current Loop · South Florida</span>
+<h1>Find what fits your Loop.</h1>
+<p>Search real places, then decide with experiences from people who know the area.</p>
+<div class="search">
+<input id="q" aria-label="Search nearby places" placeholder="What are you looking for nearby?">
+<button onclick="findPlaces()">Search</button>
+</div>
+<div class="status" id="status">Allow location to discover real places around you.</div>
+</div>
+</section>
+<div id="results" class="cards">
+</div>
+<div class="section-head">
+<div>
+<h2>Explore around you</h2>
+<p>Quick paths into your everyday decisions</p>
+</div>
+<button class="text-action" onclick="showExplore()">See all</button>
+</div>
+<div class="category-rail">
+<button class="category-tile food" onclick="quick('restaurant')">
+<span>🍽</span>
+<b>Restaurants</b>
+</button>
+<button class="category-tile health" onclick="quick('urgent care')">
+<span>✚</span>
+<b>Medical</b>
+</button>
+<button class="category-tile parks" onclick="quick('park')">
+<span>♧</span>
+<b>Parks</b>
+</button>
+<button class="category-tile home-services" onclick="quick('home services')">
+<span>⌂</span>
+<b>Home Services</b>
+</button>
+<button class="category-tile auto" onclick="quick('mechanic')">
+<span>⚙</span>
+<b>Auto</b>
+</button>
+</div>
+<div class="section-head">
+<div>
+<h2>Around your Loop</h2>
+<p>Fresh experiences from trusted people nearby</p>
+</div>
+<button class="text-action" onclick="showActivity()">Your activity</button>
+</div>
+<div class="create-prompt">
+<span class="mini-avatar">JS</span>
+<button class="prompt-button" onclick="openExperience()">Share an experience with your Loop…</button>
+</div>
+<div class="feed-layout">
+<div class="feed">
+<article class="feed-card" data-place="harbor">
+<div class="feed-top">
+<span class="feed-avatar">MF</span>
+<span class="feed-user">
+<b>Maria Flores</b>
+<small>Restaurant contributor · 2h</small>
+</span>
+<span class="rep-pill">Rep 91</span>
+</div>
+<div class="place-banner" role="button" tabindex="0" onclick="showPlace('harbor')">
+<div class="place-line">
+<div>
+<h3>Harbor Kitchen</h3>
+<span class="meta">Seafood · Fort Lauderdale · 1.8 mi</span>
+</div>
+<span class="loop-score">9.1<small>LOOP RATING</small>
+</span>
+</div>
+</div>
+<div class="feed-copy">
+<p>Perfect for a relaxed dinner. The patio gets quieter after 7:30, and the staff was excellent with our larger group.</p>
+<span class="confirm">24 people agreed · High confidence</span>
+</div>
+<div class="feedback-row">
+<button onclick="react(this,'harbor','agree')">✓ Agree</button>
+<button class="negative" onclick="react(this,'harbor','mismatch')">≈ Didn't match</button>
+<button onclick="toggleSave('harbor',this)">♡ Save</button>
+</div>
+</article>
+<article class="feed-card" data-place="coastal">
+<div class="feed-top">
+<span class="feed-avatar">DK</span>
+<span class="feed-user">
+<b>David Kim</b>
+<small>Home Services expert · 5h</small>
+</span>
+<span class="rep-pill">Rep 87</span>
+</div>
+<div class="place-banner" role="button" tabindex="0" onclick="showPlace('coastal')">
+<div class="place-line">
+<div>
+<h3>Coastal Air & Electric</h3>
+<span class="meta">Home Services · Plantation · 3.4 mi</span>
+</div>
+<span class="loop-score">8.8<small>LOOP RATING</small>
+</span>
+</div>
+</div>
+<div class="feed-copy">
+<p>They explained the repair before starting, arrived inside the promised window, and the final price matched the estimate.</p>
+<span class="confirm">18 people found this useful · Verified visit</span>
+</div>
+<div class="feedback-row">
+<button onclick="react(this,'coastal','agree')">✓ Agree</button>
+<button class="negative" onclick="react(this,'coastal','mismatch')">≈ Didn't match</button>
+<button onclick="toggleSave('coastal',this)">♡ Save</button>
+</div>
+</article>
+</div>
+<aside class="side-stack">
+<section class="side-card">
+<h3>Your Loop pulse</h3>
+<p>What people nearby are deciding right now.</p>
+<div class="pulse-row">
+<span>Restaurant activity</span>
+<strong>+18%</strong>
+</div>
+<div class="pulse-row">
+<span>New trusted places</span>
+<strong>12</strong>
+</div>
+<div class="pulse-row">
+<span>Experiences today</span>
+<strong>46</strong>
+</div>
+</section>
+<section class="side-card">
+<h3>Build your reputation</h3>
+<p>One more detailed experience can move your Restaurant expertise closer to Expert.</p>
+<button class="primary" onclick="openExperience()">Share an experience</button>
+</section>
+</aside>
+</div>
+</div>
+</main>
+<section id="placePage" class="place-page" aria-labelledby="placeTitle">
+<header class="detail-header"><button class="back" onclick="showHome()">← Back</button><div class="brand-lockup"><span class="brand-mark">L</span><span class="header-logo">loop</span></div><button id="detailSave" class="edit" onclick="toggleSave(currentPlace,this)">♡ Save</button></header>
+<div class="detail-shell"><div class="place-cover"><div><span id="placeCategory" class="eyebrow">Restaurant · Fort Lauderdale</span><h1 id="placeTitle">Harbor Kitchen</h1><p id="placeAddress">Waterfront dining inside your South Florida Loop</p></div></div><div class="detail-grid"><section class="detail-card"><div class="score-line"><span id="placeScore" class="score-big">9.1</span><span class="score-copy"><b>Loop Rating</b><small id="placeConfidence">High confidence · 126 experiences</small></span></div><ul class="trust-list"><li><span>Would return</span><strong id="returnRate">94%</strong></li><li><span>Matches expectations</span><strong id="matchRate">91%</strong></li><li><span>Recent community activity</span><strong>High</strong></li></ul><div class="place-actions"><button id="profileSave" class="save-action" onclick="toggleSave(currentPlace,this)">♡ Save place</button><button class="experience-action" onclick="openExperience(currentPlace)">＋ Add experience</button></div></section><section class="detail-card"><h2>What your Loop says</h2><p class="panel-note">Recent experiences are weighted with reviewer reputation and recency.</p><div id="placeExperiences"></div></section></div></div>
+</section>
+<section id="savedPage" class="saved-page" aria-labelledby="savedTitle"><header class="detail-header"><button class="back" onclick="showHome()">← Home</button><div class="brand-lockup"><span class="brand-mark">L</span><span class="header-logo">loop</span></div><span></span></header><div class="detail-shell"><h1 id="savedTitle">Saved places</h1><p class="panel-note">Your shortlist stays on this device while you explore Loop.</p><div id="savedList" class="saved-list"></div></div></section>
+<section id="profile" class="profile-page" aria-labelledby="profileName">
+<div class="profile-shell">
+<div class="profile-nav">
+<button class="back" onclick="showHome()">← Home</button>
+<div class="logo">loop</div>
+<button class="edit" onclick="openEditor()">Edit profile</button>
+</div>
+<div class="profile-hero">
+<div id="avatar" class="avatar">JS</div>
+<div class="identity">
+<h1 id="profileName">Jameson Leon Smith</h1>
+<p id="profileDetails">Sales Manager · South Florida</p>
+<span class="badge">Founding Explorer</span>
+</div>
+<button class="score-ring" onclick="document.getElementById('scoreInfo').showModal()" aria-label="Reputation score 82. Open score details">
+<span class="score-value">82<small>Reputation</small>
+</span>
+</button>
+</div>
+    <div class="profile-grid">
+<section class="panel">
+<h2>How your reputation is earned</h2>
+<p class="panel-note">Your score grows when your experiences are specific, recent, and confirmed by people in the Loop.</p>
+<div class="metric">
+<div class="metric-top">
+<span>Community confirmations</span>
+<span>88%</span>
+</div>
+<div class="bar">
+<span style="width:88%">
+</span>
+</div>
+</div>
+<div class="metric">
+<div class="metric-top">
+<span>Useful details</span>
+<span>84%</span>
+</div>
+<div class="bar">
+<span style="width:84%">
+</span>
+</div>
+</div>
+<div class="metric">
+<div class="metric-top">
+<span>Contribution consistency</span>
+<span>76%</span>
+</div>
+<div class="bar">
+<span style="width:76%">
+</span>
+</div>
+</div>
+<div class="metric">
+<div class="metric-top">
+<span>Recent activity</span>
+<span>71%</span>
+</div>
+<div class="bar">
+<span style="width:71%">
+</span>
+</div>
+</div>
+</section>
+    <section class="panel">
+<h2>Category expertise</h2>
+<p class="panel-note">Expertise is earned from your activity in each category.</p>
+<div class="expertise">
+<div class="expertise-row">
+<span class="expertise-icon">🍽️</span>
+<span>
+<b>Restaurants</b>
+<small>18 contributions</small>
+</span>
+<span class="level">Trusted</span>
+</div>
+<div class="expertise-row">
+<span class="expertise-icon">🛋️</span>
+<span>
+<b>Home & Furniture</b>
+<small>14 contributions</small>
+</span>
+<span class="level">Trusted</span>
+</div>
+<div class="expertise-row">
+<span class="expertise-icon">🌴</span>
+<span>
+<b>South Florida</b>
+<small>11 contributions</small>
+</span>
+<span class="level">Rising</span>
+</div>
+</div>
+</section>
+    <section class="panel activity">
+<h2>Recent contributions</h2>
+<p class="panel-note">Evidence behind your reputation, visible to the community.</p>
+<div class="activity-list">
+<article class="activity-card">
+<div class="place-name">Harbor Kitchen</div>
+<span class="confirm">12 people agreed</span>
+<p>Great for a relaxed dinner; the patio is quieter after 7:30.</p>
+<span class="date">Restaurant · 3 days ago</span>
+</article>
+<article class="activity-card">
+<div class="place-name">Oak & Home</div>
+<span class="confirm">9 people found this useful</span>
+<p>Helpful service and strong fabric choices. Ask about delivery timing first.</p>
+<span class="date">Home & Furniture · 1 week ago</span>
+</article>
+<article class="activity-card">
+<div class="place-name">Vista Park</div>
+<span class="confirm">7 people agreed</span>
+<p>Easy parking before 10 a.m. and a stroller-friendly path around the lake.</p>
+<span class="date">Parks · 2 weeks ago</span>
+</article>
+</div>
+</section>
+</div>
+</div>
+</section>
+  <section id="activityPage" class="activity-page" aria-labelledby="activityTitle">
+<div class="activity-shell">
+<div class="activity-header">
+<div>
+<div class="logo">loop</div>
+<h1 id="activityTitle">Your activity</h1>
+</div>
+<button class="menu" onclick="openMenu()" aria-label="Open menu">☰</button>
+</div>
+<div class="activity-summary">
+<div class="summary-card">
+<strong>28</strong>
+<span>community agreements</span>
+</div>
+<div class="summary-card">
+<strong>6</strong>
+<span>helpful responses</span>
+</div>
+<div class="summary-card">
+<strong>+4</strong>
+<span>reputation this month</span>
+</div>
+</div>
+<div class="update-list">
+<article class="update">
+<span class="update-icon">✓</span>
+<div>
+<b>Maria agreed with your Harbor Kitchen experience</b>
+<p>Your note about the quieter patio helped with her dinner plans.</p>
+</div>
+<time>Today</time>
+</article>
+<article class="update">
+<span class="update-icon">↗</span>
+<div>
+<b>Your restaurant expertise increased</b>
+<p>You are getting closer to Expert status in Restaurants.</p>
+</div>
+<time>Yesterday</time>
+</article>
+<article class="update">
+<span class="update-icon">♥</span>
+<div>
+<b>Oak & Home responded to your experience</b>
+<p>The business confirmed its updated delivery-time guidance.</p>
+</div>
+<time>3 days ago</time>
+</article>
+<article class="update">
+<span class="update-icon">⌕</span>
+<div>
+<b>Continue your last search</b>
+<p>Family-friendly restaurants near your current Loop.</p>
+</div>
+<time>1 week ago</time>
+</article>
+</div>
+</div>
+</section>
+  <nav class="bottom-nav" aria-label="Primary navigation">
+<button id="navHome" class="on" onclick="showHome()">
+<span class="nav-icon">⌂</span>
+<span>Home</span>
+</button>
+<button id="navExplore" onclick="showExplore()">
+<span class="nav-icon">⌕</span>
+<span>Explore</span>
+</button>
+<button id="navActivity" onclick="showActivity()">
+<span class="nav-icon">◉</span>
+<span>Activity</span>
+</button>
+<button id="navYou" onclick="showProfile()">
+<span class="nav-icon">☺</span>
+<span>You</span>
+</button>
+</nav>
+  <dialog id="profileEditor">
+<form class="dialog-inner" method="dialog" onsubmit="saveProfile(event)">
+<h2>Edit profile</h2>
+<div class="field">
+<label for="editName">Name</label>
+<input id="editName" required>
+</div>
+<div class="field">
+<label for="editRole">Work title</label>
+<input id="editRole">
+</div>
+<div class="field">
+<label for="editLocation">Location</label>
+<input id="editLocation">
+</div>
+<div class="dialog-actions">
+<button class="secondary" value="cancel">Cancel</button>
+<button class="primary" value="save">Save changes</button>
+</div>
+</form>
+</dialog>
+<dialog id="scoreInfo">
+<div class="dialog-inner">
+<h2>Reputation score: 82</h2>
+<p>This score reflects demonstrated trust—not popularity. Community confirmations, useful details, consistency, and recency all contribute. Category expertise is calculated separately so someone can be trusted for restaurants without automatically being treated as an expert in medical care.</p>
+<div class="dialog-actions">
+<button class="primary" onclick="document.getElementById('scoreInfo').close()">Got it</button>
+</div>
+</div>
+</dialog>
+<dialog id="experienceDialog"><form class="dialog-inner" onsubmit="submitExperience(event)"><h2>Share an experience</h2><p class="panel-note">Specific, firsthand details help your Loop make better decisions.</p><div class="field"><label for="experiencePlace">Place</label><select id="experiencePlace" required><option value="harbor">Harbor Kitchen</option><option value="coastal">Coastal Air &amp; Electric</option></select></div><div class="field"><label>Your rating</label><div id="ratingChoice" class="rating-choice"><button type="button" onclick="chooseRating(6,this)">6</button><button type="button" onclick="chooseRating(7,this)">7</button><button type="button" onclick="chooseRating(8,this)">8</button><button type="button" onclick="chooseRating(9,this)">9</button><button type="button" onclick="chooseRating(10,this)">10</button></div><input id="experienceRating" type="hidden" required></div><div class="field"><label for="experienceText">What should people know?</label><textarea id="experienceText" minlength="20" maxlength="500" placeholder="Share what happened, when you visited, and who this place is a good fit for…" required></textarea><small class="meta">20–500 characters</small></div><div class="dialog-actions"><button type="button" class="secondary" onclick="experienceDialog.close()">Cancel</button><button class="primary">Share with my Loop</button></div></form></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+    const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim'),home=document.getElementById('home'),profile=document.getElementById('profile'),activityPage=document.getElementById('activityPage'),placePage=document.getElementById('placePage'),savedPage=document.getElementById('savedPage'),results=document.getElementById('results'),statusEl=document.getElementById('status'),q=document.getElementById('q');
+    const places={harbor:{name:'Harbor Kitchen',category:'Seafood · Fort Lauderdale',address:'Waterfront dining inside your South Florida Loop',score:'9.1',confidence:'High confidence · 126 experiences',returnRate:'94%',matchRate:'91%',experience:'Perfect for a relaxed dinner. The patio gets quieter after 7:30, and the staff handled our larger group beautifully.',author:'Maria Flores · Rep 91'},coastal:{name:'Coastal Air & Electric',category:'Home Services · Plantation',address:'Licensed home repair service · 3.4 miles away',score:'8.8',confidence:'High confidence · 84 experiences',returnRate:'92%',matchRate:'89%',experience:'They explained the repair before starting, arrived inside the promised window, and the final price matched the estimate.',author:'David Kim · Rep 87'}};
+    let currentPlace='harbor',toastTimer;
+    function openMenu(){drawer.classList.add('open');scrim.classList.add('open')}function closeMenu(){drawer.classList.remove('open');scrim.classList.remove('open')}function toggleMenuGroup(id,button){const group=document.getElementById(id),open=group.classList.toggle('open');button.querySelector('.plus').textContent=open?'−':'+'}function setActiveNav(id){document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.toggle('on',button.id===id))}function hidePrimaryViews(){home.style.display='none';profile.classList.remove('active');activityPage.classList.remove('active');placePage.classList.remove('active');savedPage.classList.remove('active')}function showHome(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navHome');scrollTo(0,0)}function showExplore(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navExplore');scrollTo(0,0);setTimeout(()=>q.focus(),0)}function showActivity(){closeMenu();hidePrimaryViews();activityPage.classList.add('active');setActiveNav('navActivity');scrollTo(0,0)}function showProfile(){closeMenu();hidePrimaryViews();profile.classList.add('active');setActiveNav('navYou');scrollTo(0,0)}function quick(v){q.value=v;findPlaces()}function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+    function render(items){results.innerHTML=items.map(x=>`<button class="card place" onclick="openSearchPlace(this)" data-name="${esc(x.display_name.split(',')[0])}" data-category="${esc(x.type||x.category||'place')}" data-address="${esc(x.display_name)}"><span class="rating">New</span><br><b>${esc(x.display_name.split(',')[0])}</b><p>${esc(x.type||x.category||'place')}</p><div class="meta">${esc(x.display_name)}</div><p><b>Loop Rating:</b> gathering community experiences</p></button>`).join('');statusEl.textContent=items.length+' real place'+(items.length===1?'':'s')+' found near you.'}async function searchAt(term,lat,lon){statusEl.textContent='Searching real places near you…';const d=.18,viewbox=[lon-d,lat+d,lon+d,lat-d].join(','),url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=15&bounded=1&viewbox='+encodeURIComponent(viewbox)+'&q='+encodeURIComponent(term);const r=await fetch(url,{headers:{Accept:'application/json'}});if(!r.ok)throw new Error('search');const items=await r.json();if(!items.length){statusEl.textContent='No nearby matches yet. Try a broader search like “restaurant” or “park”.';results.innerHTML='';return}render(items)}async function findPlaces(){const term=q.value.trim();if(!term)return;statusEl.textContent='Finding your location…';if(!navigator.geolocation){statusEl.textContent='Location is not available in this browser.';return}navigator.geolocation.getCurrentPosition(p=>searchAt(term,p.coords.latitude,p.coords.longitude).catch(()=>statusEl.textContent='Live place search is temporarily unavailable. Try again.'),e=>{statusEl.textContent=e.code===1?'Location permission is off. Allow location for this site, then search again.':'Could not get your location. Try again.'},{enableHighAccuracy:false,timeout:12000,maximumAge:300000})}q.addEventListener('keydown',e=>{if(e.key==='Enter')findPlaces()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+    function readList(key){try{return JSON.parse(localStorage.getItem(key))||[]}catch{return[]}}function writeList(key,list){localStorage.setItem(key,JSON.stringify(list))}function notify(message){const toast=document.getElementById('toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2200)}
+    function showPlace(id){currentPlace=id;const place=places[id];if(!place)return;hidePrimaryViews();placePage.classList.add('active');setActiveNav('navExplore');document.getElementById('placeTitle').textContent=place.name;document.getElementById('placeCategory').textContent=place.category;document.getElementById('placeAddress').textContent=place.address;document.getElementById('placeScore').textContent=place.score;document.getElementById('placeConfidence').textContent=place.confidence;document.getElementById('returnRate').textContent=place.returnRate;document.getElementById('matchRate').textContent=place.matchRate;renderExperiences(id);syncSaveButtons();scrollTo(0,0)}
+    function openSearchPlace(button){const id='search-'+button.dataset.name.toLowerCase().replace(/[^a-z0-9]+/g,'-');places[id]={name:button.dataset.name,category:button.dataset.category,address:button.dataset.address,score:'New',confidence:'Gathering community experiences',returnRate:'—',matchRate:'—',experience:'Be the first person in your Loop to share a firsthand experience about this place.',author:'New to Loop'};showPlace(id)}
+    function renderExperiences(id){const place=places[id],mine=readList('loopExperiences').filter(x=>x.place===id),items=[...mine.map(x=>({text:x.text,author:'Jameson Smith · Rep 82',rating:x.rating})),{text:place.experience,author:place.author,rating:place.score}];document.getElementById('placeExperiences').innerHTML=items.map(x=>`<article class="experience-card"><b>${esc(x.author)}</b><span class="meta"> · ${esc(x.rating)}/10</span><p>${esc(x.text)}</p><span class="confirm">✓ Firsthand experience</span></article>`).join('')}
+    function getSaved(){return readList('loopSaved')}function toggleSave(id,button){if(!id||!places[id])return;const saved=getSaved(),index=saved.indexOf(id),adding=index<0;if(adding)saved.push(id);else saved.splice(index,1);writeList('loopSaved',saved);syncSaveButtons();renderSaved();notify(adding?'Saved to your places':'Removed from saved places')}function syncSaveButtons(){const saved=getSaved(),active=saved.includes(currentPlace);['detailSave','profileSave'].forEach(id=>{const button=document.getElementById(id);if(button)button.textContent=active?'♥ Saved':'♡ '+(id==='profileSave'?'Save place':'Save')});document.querySelectorAll('[data-place]').forEach(card=>{const button=card.querySelector('.feedback-row button:last-child');if(button)button.textContent=saved.includes(card.dataset.place)?'♥ Saved':'♡ Save'})}
+    function showSaved(){closeMenu();hidePrimaryViews();savedPage.classList.add('active');setActiveNav('navExplore');renderSaved();scrollTo(0,0)}function renderSaved(){const ids=getSaved().filter(id=>places[id]),list=document.getElementById('savedList');list.innerHTML=ids.length?ids.map(id=>`<article class="saved-item"><div><h3>${esc(places[id].name)}</h3><span class="meta">${esc(places[id].category)} · Loop Rating ${esc(places[id].score)}</span></div><button class="edit" onclick="showPlace('${id}')">View</button></article>`).join(''):'<div class="saved-empty"><h2>No saved places yet</h2><p>Tap Save on a feed card or place profile to build your shortlist.</p><button class="primary" onclick="showHome()">Explore your Loop</button></div>'}
+    function react(button,id,type){const key='loopReaction-'+id,previous=localStorage.getItem(key);button.closest('.feedback-row').querySelectorAll('button').forEach(x=>x.classList.remove('selected'));if(previous===type){localStorage.removeItem(key);notify('Feedback removed');return}localStorage.setItem(key,type);button.classList.add('selected');notify(type==='agree'?'Your agreement strengthens this experience':'Thanks—your Loop will learn from this')}
+    function openExperience(id){closeMenu();if(id&&places[id])currentPlace=id;const select=document.getElementById('experiencePlace');if(![...select.options].some(x=>x.value===currentPlace)&&places[currentPlace])select.add(new Option(places[currentPlace].name,currentPlace));select.value=places[currentPlace]?currentPlace:'harbor';document.getElementById('experienceText').value='';chooseRating(null);document.getElementById('experienceDialog').showModal()}function chooseRating(rating,button){document.getElementById('experienceRating').value=rating||'';document.querySelectorAll('#ratingChoice button').forEach(x=>x.classList.toggle('on',x===button))}function submitExperience(event){event.preventDefault();const place=document.getElementById('experiencePlace').value,rating=document.getElementById('experienceRating').value,text=document.getElementById('experienceText').value.trim();if(!rating){notify('Choose a rating first');return}const experiences=readList('loopExperiences');experiences.unshift({place,rating,text,createdAt:Date.now()});writeList('loopExperiences',experiences);document.getElementById('experienceDialog').close();showPlace(place);notify('Experience shared with your Loop')}
+    function restoreState(){syncSaveButtons();document.querySelectorAll('[data-place]').forEach(card=>{const type=localStorage.getItem('loopReaction-'+card.dataset.place);if(type){const button=card.querySelector(type==='agree'?'.feedback-row button:first-child':'.feedback-row .negative');if(button)button.classList.add('selected')}})}
+    function getProfile(){try{return JSON.parse(localStorage.getItem('loopProfile'))||{}}catch{return{}}}function applyProfile(data){const name=data.name||'Jameson Leon Smith',role=data.role||'Sales Manager',location=data.location||'South Florida';document.getElementById('profileName').textContent=name;document.getElementById('profileDetails').textContent=[role,location].filter(Boolean).join(' · ');document.getElementById('avatar').textContent=name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'JS'}function openEditor(){const data=getProfile();document.getElementById('editName').value=data.name||'Jameson Leon Smith';document.getElementById('editRole').value=data.role||'Sales Manager';document.getElementById('editLocation').value=data.location||'South Florida';document.getElementById('profileEditor').showModal()}function saveProfile(event){event.preventDefault();const data={name:document.getElementById('editName').value.trim(),role:document.getElementById('editRole').value.trim(),location:document.getElementById('editLocation').value.trim()};localStorage.setItem('loopProfile',JSON.stringify(data));applyProfile(data);document.getElementById('profileEditor').close()}applyProfile(getProfile());restoreState();
   </script>
-</body></html>
+</body>
+</html>
