@@ -1,0 +1,45 @@
+{
+  "id": "/",
+  "name": "Loop Alpha",
+  "short_name": "Loop",
+  "description": "Local knowledge, made useful.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d1511",
+  "theme_color": "#116b3a",
+  "orientation": "portrait-primary",
+  "categories": ["social", "lifestyle", "navigation"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Explore my Loop",
+      "short_name": "Explore",
+      "url": "/?view=explore"
+    },
+    {
+      "name": "My profile",
+      "short_name": "Profile",
+      "url": "/?view=profile"
+    }
+  ]
+}
