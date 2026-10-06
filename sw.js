@@ -1,4 +1,4 @@
-const CACHE_NAME = 'loop-alpha-v5';
+const CACHE_NAME = 'loop-alpha-v6';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -51,5 +51,33 @@ self.addEventListener('fetch', event => {
       }
       return response;
     }))
+  );
+});
+
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data ? event.data.text() : '' }; }
+  const title = data.title || 'Loop';
+  const options = {
+    body: data.body || 'You have new activity in Loop.',
+    icon: '/icons/icon-192.png?v=5',
+    badge: '/icons/icon-192.png?v=5',
+    tag: data.tag || 'loop-update',
+    data: { url: data.url || '/?view=activity' }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = event.notification.data && event.notification.data.url ? event.notification.data.url : '/?view=activity';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+      for (const client of windows) {
+        if ('navigate' in client) client.navigate(target);
+        if ('focus' in client) return client.focus();
+      }
+      return clients.openWindow ? clients.openWindow(target) : undefined;
+    })
   );
 });
