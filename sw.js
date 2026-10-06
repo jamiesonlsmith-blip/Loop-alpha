@@ -1,4 +1,4 @@
-const CACHE_NAME = 'loop-alpha-v6';
+const CACHE_NAME = 'loop-alpha-v7';
 const APP_SHELL = [
   '/',
   '/index.html',
