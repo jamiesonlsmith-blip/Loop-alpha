@@ -1,4 +1,4 @@
-const CACHE_NAME = 'loop-alpha-v4';
+const CACHE_NAME = 'loop-alpha-v5';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -28,6 +28,7 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
