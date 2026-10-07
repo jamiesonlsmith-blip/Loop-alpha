@@ -50,9 +50,38 @@
     .community-intro{background:linear-gradient(135deg,#0e5f36,#153d2b);color:#fff;border-radius:28px;padding:28px}.community-overline{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#d7eddd}.community-intro h1{font-size:38px;margin:8px 0 8px;letter-spacing:-1.5px}.community-intro p{margin:0;max-width:650px;color:#e1efe5;line-height:1.55}.community-composer{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:20px;padding:13px;margin-top:15px}.community-composer button{flex:1;border:0;border-radius:999px;background:#f2f5f2;color:#667069;text-align:left;padding:12px 15px}.community-filter-row{display:flex;gap:8px;overflow-x:auto;padding:16px 1px 8px;scrollbar-width:none}.community-filter-row button{white-space:nowrap;border:0;border-radius:999px;background:#e9eeea;color:#4d5750;padding:9px 13px;font-weight:800}.community-filter-row button.on{background:var(--green);color:#fff}.community-note{font-size:12px;color:var(--muted);padding:4px 2px 12px}.community-feed{display:grid;gap:12px}.community-post{background:#fff;border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 7px 22px #18352209}.community-post-head{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:15px 16px}.community-post-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#edf7f0;color:var(--green);font-weight:900}.community-post-head b,.community-post-head small{display:block}.community-post-head small{color:var(--muted);margin-top:2px}.community-topic{font-size:11px;font-weight:900;color:var(--green);background:#edf7f0;border-radius:999px;padding:6px 9px}.community-post-body{padding:2px 16px 16px;font-size:16px;line-height:1.55}.community-sample{font-size:11px;color:#8a948d;margin-top:8px}.community-actions{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}.community-actions button{border:0;background:#fff;padding:12px;font-weight:800;color:#58635b}.community-actions button+button{border-left:1px solid var(--line)}.community-actions button.selected{color:var(--green);background:#f2f8f4}.community-replies{border-top:1px solid #edf0ed;background:#fafbfa;padding:0 16px}.community-reply{padding:10px 0;border-bottom:1px solid #edf0ed;font-size:14px}.community-reply:last-child{border-bottom:0}.community-reply b{display:block;font-size:12px;margin-bottom:2px}.notification-hero{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px;margin-bottom:14px}.notification-hero h2{margin:0 0 5px}.notification-hero p{margin:0;color:var(--muted)}.notification-title-icon{width:34px;height:34px;border-radius:12px;background:#edf7f0;color:var(--green);display:grid;place-items:center}.nav-svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.nav-community-svg{width:25px;height:25px}.nav-messenger-svg{width:24px;height:24px}.notification-button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
     @media(max-width:760px){.loop-home-shell{padding:8px 15px 28px}.welcome-panel{display:block;padding:20px 2px 16px}.welcome-panel h1{font-size:43px}.member-home-badge{margin-top:16px;min-width:0}.home-category-head{padding:0;margin-top:27px}.category-grid{grid-template-columns:1fr 1fr;gap:11px}.category-grid .category-tile{min-height:142px;padding:15px}.guest-home-nudge{grid-template-columns:1fr}.guest-home-nudge button{justify-self:start}.member-community-teaser{grid-template-columns:48px 1fr}.member-community-teaser button{grid-column:1/-1}.category-shell,.community-shell{padding:16px 13px 28px}.category-context{grid-template-columns:56px 1fr;padding:17px}.category-context-icon{width:56px;height:56px;border-radius:18px;font-size:27px}.category-context h1{font-size:25px}.community-intro{border-radius:22px;padding:22px 18px}.community-intro h1{font-size:32px}.community-filter-row{margin-right:-13px}.activity-page{padding-bottom:102px}}
 
+
+    /* Subtle fixed Loop wallpaper — high-level member surfaces only */
+    .loop-wallpaper{
+      position:fixed;
+      inset:0;
+      z-index:0;
+      pointer-events:none;
+      opacity:0;
+      transition:opacity .18s ease;
+      background-color:#f5f7f5;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='104' height='104' viewBox='0 0 104 104'%3E%3Cg fill='none' stroke='%2317221b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round' opacity='.58'%3E%3Ccircle cx='42' cy='43' r='11.5'/%3E%3Ccircle cx='58' cy='53' r='11.5'/%3E%3Cpath d='M33.4 51.5l-3.3 4.8'/%3E%3Cpath d='M66.8 61.5l3.3 4.8'/%3E%3C/g%3E%3C/svg%3E");
+      background-repeat:repeat;
+      background-size:104px 104px;
+      background-position:8px 10px;
+    }
+    .loop-wallpaper.active{opacity:.055}
+    #home,#communityPage,#activityPage{position:relative;z-index:1}
+    body.loop-wallpaper-on #home,
+    body.loop-wallpaper-on #communityPage,
+    body.loop-wallpaper-on #activityPage{background:transparent}
+    body.loop-wallpaper-on .loop-home-shell,
+    body.loop-wallpaper-on .community-shell,
+    body.loop-wallpaper-on .activity-shell{position:relative;z-index:1}
+    @media(max-width:560px){
+      .loop-wallpaper{background-size:92px 92px}
+      .loop-wallpaper.active{opacity:.05}
+    }
+
 </style>
 </head>
 <body>
+  <div id="loopWallpaper" class="loop-wallpaper active" aria-hidden="true"></div>
   <div id="scrim" class="scrim" onclick="closeMenu()">
 </div>
 <aside id="drawer" class="drawer" aria-label="Main menu">
@@ -760,7 +789,7 @@
 </dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script>
-    const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim'),home=document.getElementById('home'),categoryPage=document.getElementById('categoryPage'),communityPage=document.getElementById('communityPage'),profile=document.getElementById('profile'),activityPage=document.getElementById('activityPage'),messengerPage=document.getElementById('messengerPage'),placePage=document.getElementById('placePage'),savedPage=document.getElementById('savedPage'),settingsPage=document.getElementById('settingsPage'),trustPage=document.getElementById('trustPage'),aboutPage=document.getElementById('aboutPage'),privacyPage=document.getElementById('privacyPage'),termsPage=document.getElementById('termsPage'),howLoopWorksPage=document.getElementById('howLoopWorksPage'),communityGuidelinesPage=document.getElementById('communityGuidelinesPage'),contactSupportPage=document.getElementById('contactSupportPage'),results=document.getElementById('results'),statusEl=document.getElementById('status'),q=document.getElementById('q');
+    const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim'),loopWallpaper=document.getElementById('loopWallpaper'),home=document.getElementById('home'),categoryPage=document.getElementById('categoryPage'),communityPage=document.getElementById('communityPage'),profile=document.getElementById('profile'),activityPage=document.getElementById('activityPage'),messengerPage=document.getElementById('messengerPage'),placePage=document.getElementById('placePage'),savedPage=document.getElementById('savedPage'),settingsPage=document.getElementById('settingsPage'),trustPage=document.getElementById('trustPage'),aboutPage=document.getElementById('aboutPage'),privacyPage=document.getElementById('privacyPage'),termsPage=document.getElementById('termsPage'),howLoopWorksPage=document.getElementById('howLoopWorksPage'),communityGuidelinesPage=document.getElementById('communityGuidelinesPage'),contactSupportPage=document.getElementById('contactSupportPage'),results=document.getElementById('results'),statusEl=document.getElementById('status'),q=document.getElementById('q');
     let deferredInstallPrompt=null;
     function loopIsStandalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true}
     function syncInstallState(){
@@ -827,16 +856,17 @@
     if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}
     const places={harbor:{name:'Harbor Kitchen',category:'Seafood · Fort Lauderdale',address:'Waterfront dining inside your South Florida Loop',score:'9.1',confidence:'High confidence · 126 experiences',returnRate:'94%',matchRate:'91%',experience:'Perfect for a relaxed dinner. The patio gets quieter after 7:30, and the staff handled our larger group beautifully.',author:'Maria Flores · Rep 91'},coastal:{name:'Coastal Air & Electric',category:'Home Services · Plantation',address:'Licensed home repair service · 3.4 miles away',score:'8.8',confidence:'High confidence · 84 experiences',returnRate:'92%',matchRate:'89%',experience:'They explained the repair before starting, arrived inside the promised window, and the final price matched the estimate.',author:'David Kim · Rep 87'}};
     let currentPlace='harbor',toastTimer;
+    function setLoopWallpaper(on){document.body.classList.toggle('loop-wallpaper-on',!!on);if(loopWallpaper)loopWallpaper.classList.toggle('active',!!on)}
     function openMenu(){drawer.classList.add('open');scrim.classList.add('open')}
     function closeMenu(){drawer.classList.remove('open');scrim.classList.remove('open')}
     function toggleMenuGroup(id,button){const group=document.getElementById(id),open=group.classList.toggle('open');button.querySelector('.plus').textContent=open?'−':'+'}
     function setActiveNav(id){document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.toggle('on',button.id===id))}
-    function hidePrimaryViews(){home.style.display='none';categoryPage.classList.remove('active');communityPage.classList.remove('active');profile.classList.remove('active');activityPage.classList.remove('active');messengerPage.classList.remove('active');placePage.classList.remove('active');savedPage.classList.remove('active');settingsPage.classList.remove('active');trustPage.classList.remove('active');aboutPage.classList.remove('active');privacyPage.classList.remove('active');termsPage.classList.remove('active');howLoopWorksPage.classList.remove('active');communityGuidelinesPage.classList.remove('active');contactSupportPage.classList.remove('active')}
-    function returnToMenu(){hidePrimaryViews();home.style.display='block';applyAccountState();setActiveNav('navHome');scrollTo(0,0);requestAnimationFrame(openMenu)}
-    function showHome(){closeMenu();hidePrimaryViews();home.style.display='block';applyAccountState();setActiveNav('navHome');scrollTo(0,0)}
+    function hidePrimaryViews(){setLoopWallpaper(false);home.style.display='none';categoryPage.classList.remove('active');communityPage.classList.remove('active');profile.classList.remove('active');activityPage.classList.remove('active');messengerPage.classList.remove('active');placePage.classList.remove('active');savedPage.classList.remove('active');settingsPage.classList.remove('active');trustPage.classList.remove('active');aboutPage.classList.remove('active');privacyPage.classList.remove('active');termsPage.classList.remove('active');howLoopWorksPage.classList.remove('active');communityGuidelinesPage.classList.remove('active');contactSupportPage.classList.remove('active')}
+    function returnToMenu(){hidePrimaryViews();home.style.display='block';setLoopWallpaper(true);applyAccountState();setActiveNav('navHome');scrollTo(0,0);requestAnimationFrame(openMenu)}
+    function showHome(){closeMenu();hidePrimaryViews();home.style.display='block';setLoopWallpaper(true);applyAccountState();setActiveNav('navHome');scrollTo(0,0)}
     function showExplore(){showHome();setTimeout(()=>document.getElementById('homeCategoryGrid')?.scrollIntoView({behavior:'smooth',block:'start'}),0)}
-    function showCommunity(){if(!requireProfile('Loop Community'))return;closeMenu();hidePrimaryViews();communityPage.classList.add('active');setActiveNav('navCommunity');renderCommunity();scrollTo(0,0)}
-    function showNotifications(){if(!requireProfile('notifications'))return;closeMenu();hidePrimaryViews();activityPage.classList.add('active');setActiveNav('navNotifications');scrollTo(0,0)}
+    function showCommunity(){if(!requireProfile('Loop Community'))return;closeMenu();hidePrimaryViews();communityPage.classList.add('active');setLoopWallpaper(true);setActiveNav('navCommunity');renderCommunity();scrollTo(0,0)}
+    function showNotifications(){if(!requireProfile('notifications'))return;closeMenu();hidePrimaryViews();activityPage.classList.add('active');setLoopWallpaper(true);setActiveNav(null);scrollTo(0,0)}
     function showActivity(){showNotifications()}
     function showMessenger(){if(!requireProfile('Messenger'))return;closeMenu();hidePrimaryViews();messengerPage.classList.add('active');setActiveNav('navMessenger');scrollTo(0,0)}
     function showProfile(){closeMenu();hidePrimaryViews();applyAccountState();profile.classList.add('active');setActiveNav('navYou');scrollTo(0,0)}
@@ -1020,7 +1050,7 @@
       onboarding.addEventListener('cancel',event=>{if(!getAccountMode())event.preventDefault()});
       if(!getAccountMode())requestAnimationFrame(()=>{if(!onboarding.open)onboarding.showModal()});
     }
-    initializeAccount();restoreState();syncInstallState();
+    initializeAccount();restoreState();syncInstallState();setLoopWallpaper(true);
     const initialView=new URLSearchParams(location.search).get('view');
     if(initialView==='profile')showProfile();else if(initialView==='explore')showExplore();else if(initialView==='messages')showMessenger();else if(initialView==='activity'||initialView==='notifications')showNotifications();else if(initialView==='community')showCommunity();else if(initialView==='how')showHowLoopWorks();else if(initialView==='guidelines')showCommunityGuidelines();else if(initialView==='support')showContactSupport();
   </script>
