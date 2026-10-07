@@ -696,7 +696,7 @@
 <h2 id="profileSetupTitle">Create your Loop profile</h2>
 <p id="profileSetupIntro" class="form-intro">Give Loop enough context to personalize your experience. You do not need to enter an exact street address — a city, neighborhood, or general home area is enough.</p>
 <div class="field"><label for="setupName">Name</label><input id="setupName" autocomplete="name" required></div>
-<div class="field"><label for="setupEmail">Email</label><input id="setupEmail" type="email" autocomplete="email" required></div>
+<div class="field"><label for="setupEmail">Email</label><input id="setupEmail" type="email" autocomplete="email" required><small class="meta">One email can be connected to only one Loop account.</small></div>
 <div id="authPasswordFields" class="auth-password-fields" hidden>
 <div class="field"><label for="setupPassword">Password</label><div class="password-input-wrap"><input id="setupPassword" type="password" autocomplete="new-password" minlength="8"><button type="button" class="password-toggle" aria-label="Show password" aria-pressed="false" onclick="togglePasswordVisibility('setupPassword',this)"><svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg><svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 6.2A9.8 9.8 0 0 1 12 6c6 0 9.5 6 9.5 6a16.4 16.4 0 0 1-3.1 3.7"></path><path d="M6.6 6.7C4 8.4 2.5 12 2.5 12s3.5 6 9.5 6c1 0 1.9-.2 2.8-.5"></path></svg></button></div><small class="meta">Use at least 8 characters.</small></div>
 <div class="field"><label for="setupPasswordConfirm">Confirm password</label><div class="password-input-wrap"><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="8"><button type="button" class="password-toggle" aria-label="Show password" aria-pressed="false" onclick="togglePasswordVisibility('setupPasswordConfirm',this)"><svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg><svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 6.2A9.8 9.8 0 0 1 12 6c6 0 9.5 6 9.5 6a16.4 16.4 0 0 1-3.1 3.7"></path><path d="M6.6 6.7C4 8.4 2.5 12 2.5 12s3.5 6 9.5 6c1 0 1.9-.2 2.8-.5"></path></svg></button></div></div>
@@ -760,9 +760,9 @@
 <dialog id="verificationDialog" class="account-dialog">
 <div class="account-form">
 <h2>Check your email</h2>
-<p id="verificationCopy" class="account-gate-copy">We sent a verification link to your email. Open it to finish creating your Loop account.</p>
-<div class="auth-status-pill">✓ Email verification required</div>
-<div class="dialog-actions"><button type="button" class="primary" onclick="document.getElementById('verificationDialog').close();showHome()">Got it</button></div>
+<p id="verificationCopy" class="account-gate-copy">If this is a new Loop account, we sent a verification link to your email. If that email is already connected to Loop, a second account was not created.</p>
+<div class="auth-status-pill">✓ One email = one Loop account</div>
+<div class="dialog-actions"><button type="button" class="secondary" onclick="signInFromVerification()">Sign in</button><button type="button" class="secondary" onclick="resetPasswordFromVerification()">Reset password</button><button type="button" class="primary" onclick="document.getElementById('verificationDialog').close();showHome()">Got it</button></div>
 </div>
 </dialog>
 
@@ -1179,6 +1179,8 @@
       const onboarding=document.getElementById('onboardingDialog'),gate=document.getElementById('accountGateDialog'),dialog=document.getElementById('signInDialog');if(onboarding.open)onboarding.close();if(gate.open)gate.close();setAuthMessage('signInMessage','');const cached=getProfile();document.getElementById('signInEmail').value=cached.email||'';document.getElementById('signInPassword').value='';resetPasswordVisibility('signInPassword');if(!dialog.open)dialog.showModal()
     }
     function backToOnboardingFromSignIn(){const dialog=document.getElementById('signInDialog');if(dialog.open)dialog.close();openOnboarding()}
+    function signInFromVerification(){const email=document.getElementById('setupEmail')?.value.trim()||'';const verification=document.getElementById('verificationDialog');if(verification.open)verification.close();openSignIn();if(email)document.getElementById('signInEmail').value=email}
+    function resetPasswordFromVerification(){const email=document.getElementById('setupEmail')?.value.trim()||'';const verification=document.getElementById('verificationDialog');if(verification.open)verification.close();if(email)document.getElementById('signInEmail').value=email;openForgotPassword()}
     function startProfileSetup(useNew=false){
       const onboarding=document.getElementById('onboardingDialog'),gate=document.getElementById('accountGateDialog'),setup=document.getElementById('profileSetupDialog');
       if(onboarding.open)onboarding.close();if(gate.open)gate.close();
@@ -1218,8 +1220,8 @@
         if(error)throw error;
         localStorage.removeItem(AUTH_MIGRATION_KEY);
         if(result.session?.user){await syncAuthenticatedUser(result.session.user);document.getElementById('profileSetupDialog').close();showHome();notify('Your Loop account is ready');setTimeout(maybeOfferNotifications,1200)}
-        else{localStorage.setItem(ACCOUNT_MODE_KEY,'guest');document.getElementById('verificationCopy').textContent='We sent a verification link to '+data.email+'. Open it to finish creating your Loop account.';document.getElementById('profileSetupDialog').close();const verification=document.getElementById('verificationDialog');if(!verification.open)verification.showModal()}
-      }catch(error){setAuthMessage('profileSetupMessage',error?.message||'Loop could not create that account. Please try again.')}
+        else{localStorage.setItem(ACCOUNT_MODE_KEY,'guest');document.getElementById('verificationCopy').textContent='If this is a new Loop account, we sent a verification link to '+data.email+'. If that email is already connected to Loop, a second account was not created. Sign in with your existing password or reset it.';document.getElementById('profileSetupDialog').close();const verification=document.getElementById('verificationDialog');if(!verification.open)verification.showModal()}
+      }catch(error){const authError=String(error?.message||'');const duplicate=error?.code==='user_already_exists'||/already (registered|exists|in use)/i.test(authError);setAuthMessage('profileSetupMessage',duplicate?'That email is already connected to a Loop account. Sign in with your existing password or reset it.':(authError||'Loop could not create that account. Please try again.'))}
       finally{button.disabled=false;button.textContent='Create account'}
     }
     async function signInAccount(event){
