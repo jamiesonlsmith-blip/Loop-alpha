@@ -51,7 +51,7 @@
     @media(max-width:760px){.loop-home-shell{padding:8px 15px 28px}.welcome-panel{display:block;padding:20px 2px 16px}.welcome-panel h1{font-size:43px}.member-home-badge{margin-top:16px;min-width:0}.home-category-head{padding:0;margin-top:27px}.category-grid{grid-template-columns:1fr 1fr;gap:11px}.category-grid .category-tile{min-height:142px;padding:15px}.guest-home-nudge{grid-template-columns:1fr}.guest-home-nudge button{justify-self:start}.member-community-teaser{grid-template-columns:48px 1fr}.member-community-teaser button{grid-column:1/-1}.category-shell,.community-shell{padding:16px 13px 28px}.category-context{grid-template-columns:56px 1fr;padding:17px}.category-context-icon{width:56px;height:56px;border-radius:18px;font-size:27px}.category-context h1{font-size:25px}.community-intro{border-radius:22px;padding:22px 18px}.community-intro h1{font-size:32px}.community-filter-row{margin-right:-13px}.activity-page{padding-bottom:102px}}
 
 
-    /* Subtle fixed Loop wallpaper — high-level member surfaces only */
+    /* Subtle fixed Loop wallpaper — staggered 4 / 3 rhythm */
     .loop-wallpaper{
       position:fixed;
       inset:0;
@@ -60,12 +60,12 @@
       opacity:0;
       transition:opacity .18s ease;
       background-color:#f5f7f5;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='104' height='104' viewBox='0 0 104 104'%3E%3Cg fill='none' stroke='%2317221b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round' opacity='.58'%3E%3Ccircle cx='42' cy='43' r='11.5'/%3E%3Ccircle cx='58' cy='53' r='11.5'/%3E%3Cpath d='M33.4 51.5l-3.3 4.8'/%3E%3Cpath d='M66.8 61.5l3.3 4.8'/%3E%3C/g%3E%3C/svg%3E");
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='152' viewBox='0 0 360 152'%3E%3Cg fill='none' stroke='%2317221b' stroke-width='2.35' stroke-linecap='round' stroke-linejoin='round' opacity='.68'%3E%3Cg transform='translate(16 12)'%3E%3Ccircle cx='14' cy='14' r='10.5'/%3E%3Ccircle cx='28' cy='23' r='10.5'/%3E%3Cpath d='M6 22l-3 4.5'/%3E%3Cpath d='M36 31l3 4.5'/%3E%3C/g%3E%3Cg transform='translate(106 12)'%3E%3Ccircle cx='14' cy='14' r='10.5'/%3E%3Ccircle cx='28' cy='23' r='10.5'/%3E%3Cpath d='M6 22l-3 4.5'/%3E%3Cpath d='M36 31l3 4.5'/%3E%3C/g%3E%3Cg transform='translate(196 12)'%3E%3Ccircle cx='14' cy='14' r='10.5'/%3E%3Ccircle cx='28' cy='23' r='10.5'/%3E%3Cpath d='M6 22l-3 4.5'/%3E%3Cpath d='M36 31l3 4.5'/%3E%3C/g%3E%3Cg transform='translate(286 12)'%3E%3Ccircle cx='14' cy='14' r='10.5'/%3E%3Ccircle cx='28' cy='23' r='10.5'/%3E%3Cpath d='M6 22l-3 4.5'/%3E%3Cpath d='M36 31l3 4.5'/%3E%3C/g%3E%3Cg transform='translate(61 88)'%3E%3Ccircle cx='14' cy='14' r='10.5'/%3E%3Ccircle cx='28' cy='23' r='10.5'/%3E%3Cpath d='M6 22l-3 4.5'/%3E%3Cpath d='M36 31l3 4.5'/%3E%3C/g%3E%3Cg transform='translate(151 88)'%3E%3Ccircle cx='14' cy='14' r='10.5'/%3E%3Ccircle cx='28' cy='23' r='10.5'/%3E%3Cpath d='M6 22l-3 4.5'/%3E%3Cpath d='M36 31l3 4.5'/%3E%3C/g%3E%3Cg transform='translate(241 88)'%3E%3Ccircle cx='14' cy='14' r='10.5'/%3E%3Ccircle cx='28' cy='23' r='10.5'/%3E%3Cpath d='M6 22l-3 4.5'/%3E%3Cpath d='M36 31l3 4.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
       background-repeat:repeat;
-      background-size:104px 104px;
-      background-position:8px 10px;
+      background-size:360px 152px;
+      background-position:center 8px;
     }
-    .loop-wallpaper.active{opacity:.055}
+    .loop-wallpaper.active{opacity:.078}
     #home,#communityPage,#activityPage{position:relative;z-index:1}
     body.loop-wallpaper-on #home,
     body.loop-wallpaper-on #communityPage,
@@ -74,8 +74,8 @@
     body.loop-wallpaper-on .community-shell,
     body.loop-wallpaper-on .activity-shell{position:relative;z-index:1}
     @media(max-width:560px){
-      .loop-wallpaper{background-size:92px 92px}
-      .loop-wallpaper.active{opacity:.05}
+      .loop-wallpaper{background-size:340px 144px;background-position:center 6px}
+      .loop-wallpaper.active{opacity:.072}
     }
 
 </style>
