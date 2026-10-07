@@ -10,6 +10,10 @@ function normalize(value = '') {
   return String(value).trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 120);
 }
 
+function cleanText(value = '') {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
 function unique(values) {
   return [...new Set(values.map(normalize).filter(Boolean))];
 }
@@ -18,8 +22,7 @@ function queryCandidates(value = '', category = '') {
   const q = normalize(value);
   if (!q) return [];
 
-  // Preserve the user's actual intent. Never collapse a specific request such
-  // as "rooftop lounge" into a generic "restaurant" search.
+  // Preserve specific intent instead of widening prematurely.
   if (/\brooftop\b|\broof[ -]?top\b/.test(q)) {
     return unique([q, 'rooftop bar', 'rooftop lounge', 'rooftop restaurant']);
   }
@@ -28,12 +31,25 @@ function queryCandidates(value = '', category = '') {
   if (/\bvegan\b/.test(q)) return unique([q, 'vegan restaurant']);
   if (/\bcoffee\b|\bcafe\b/.test(q)) return unique([q, 'coffee']);
   if (/\bpizza\b/.test(q)) return unique([q, 'pizza']);
-  if (/tire|tyre|flat tire|flat tyre|change my tire|change a tire|tire repair|wheel repair/.test(q)) {
-    return unique([q, 'tire shop', 'auto repair']);
+
+  // Auto sub-intents stay specific so a brake search does not turn into a
+  // generic list of every car-repair business nearby.
+  if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) {
+    return unique([q, 'auto body shop', 'collision repair']);
   }
-  if (/car shop|auto shop|repair shop|mechanic|auto repair|car repair|oil change|brake/.test(q)) {
+  if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) {
+    return unique([q, 'brake service', 'brake repair']);
+  }
+  if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) {
+    return unique([q, 'oil change', 'lube service']);
+  }
+  if (/tire|tyre|flat tire|flat tyre|change my tire|change a tire|tire repair|wheel repair/.test(q)) {
+    return unique([q, 'tire shop', 'tyre shop']);
+  }
+  if (/car shop|auto shop|repair shop|mechanic|auto repair|car repair/.test(q)) {
     return unique([q, 'auto repair', 'car repair', 'mechanic']);
   }
+
   if (/urgent care|doctor|medical|clinic/.test(q)) return unique([q, 'clinic']);
   if (/\bbowling\b/.test(q)) return unique([q, 'bowling alley', 'bowling']);
   if (/\barcade\b|video arcade|game arcade/.test(q)) return unique([q, 'arcade', 'amusement arcade', 'family entertainment center']);
@@ -50,7 +66,6 @@ function queryCandidates(value = '', category = '') {
     return ['family entertainment center', 'arcade', 'bowling alley', 'amusement park'];
   }
 
-  // Only normalize when the user actually made a broad category request.
   if (/^(restaurant|restaurants|food|places to eat|eat)$/.test(q) || (category === 'restaurants' && /^(nearby|something nearby)$/.test(q))) {
     return ['restaurant'];
   }
@@ -74,8 +89,19 @@ function hardIntentGroups(value = '') {
   if (/\bbrunch\b/.test(q)) groups.push(/\bbrunch\b|\bbreakfast\b/i);
   if (/\bcoffee\b|\bcafe\b/.test(q)) groups.push(/\bcoffee\b|\bcafe\b|\bcafé\b/i);
   if (/\bpizza\b/.test(q)) groups.push(/\bpizza\b|\bpizzeria\b/i);
+
+  if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) {
+    groups.push(/\bbody shop\b|\bauto body\b|\bcollision\b|\bpanel beat(?:er|ing)\b|\bcoachwork\b/i);
+  }
+  if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) {
+    groups.push(/\bbrake\b|\bbrakes\b|\bbraking\b/i);
+  }
+  if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) {
+    groups.push(/\boil change\b|\blube\b|\blubrication\b/i);
+  }
   if (/\btire\b|\btyre\b/.test(q)) groups.push(/\btire\b|\btyre\b|\btyres\b/i);
   if (/\bmechanic\b|\bauto repair\b|\bcar repair\b/.test(q)) groups.push(/\bmechanic\b|\bauto repair\b|\bcar repair\b|\bgarage\b/i);
+
   if (/\burgent care\b/.test(q)) groups.push(/\burgent care\b|\bclinic\b/i);
   if (/\bbowling\b/.test(q)) groups.push(/\bbowling\b|\bbowling alley\b/i);
   if (/\barcade\b|video arcade|game arcade/.test(q)) groups.push(/\barcade\b|\bamusement arcade\b|\bfamily entertainment\b/i);
@@ -93,11 +119,13 @@ function hardIntentGroups(value = '') {
 function itemSearchText(item = {}) {
   const extras = item.extratags && typeof item.extratags === 'object' ? Object.values(item.extratags) : [];
   const names = item.namedetails && typeof item.namedetails === 'object' ? Object.values(item.namedetails) : [];
+  const address = item.address && typeof item.address === 'object' ? Object.values(item.address) : [];
   return [
     item.name,
     item.display_name,
     item.type,
     item.category,
+    ...address,
     ...extras,
     ...names
   ].filter(Boolean).join(' ').toLowerCase();
@@ -142,7 +170,141 @@ function milesBetween(lat1, lon1, lat2, lon2) {
   return 2 * r * Math.asin(Math.sqrt(a));
 }
 
-async function searchNominatim(query, viewbox) {
+function firstAddressValue(address = {}, keys = []) {
+  for (const key of keys) {
+    const value = cleanText(address[key]);
+    if (value) return value;
+  }
+  return '';
+}
+
+function dedupeParts(parts = [], placeName = '') {
+  const seen = new Set();
+  const placeKey = normalize(placeName);
+  return parts.map(cleanText).filter(value => {
+    if (!value) return false;
+    const key = normalize(value);
+    if (!key || key === placeKey || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function fallbackAddressParts(item = {}, placeName = '') {
+  const parts = String(item.display_name || '').split(',').map(cleanText).filter(Boolean);
+  if (parts.length && normalize(parts[0]) === normalize(placeName)) parts.shift();
+  return dedupeParts(parts, placeName);
+}
+
+function placeNameFor(item = {}) {
+  const namedetails = item.namedetails && typeof item.namedetails === 'object' ? item.namedetails : {};
+  return cleanText(item.name || namedetails.name || namedetails['name:en'] || String(item.display_name || '').split(',')[0] || 'Local place');
+}
+
+function internationalAddressFor(item = {}, placeName = '') {
+  const address = item.address && typeof item.address === 'object' ? item.address : {};
+  const houseNumber = firstAddressValue(address, ['house_number']);
+  const road = firstAddressValue(address, ['road','pedestrian','residential','street','footway','path']);
+  const locality = firstAddressValue(address, ['city','town','village','municipality','hamlet','suburb','neighbourhood','quarter','city_district','locality']);
+  const region = firstAddressValue(address, ['state','region','province','state_district','county']);
+  const postcode = firstAddressValue(address, ['postcode']);
+  const country = firstAddressValue(address, ['country']);
+  const countryCode = cleanText(address.country_code).toUpperCase();
+  const roadLine = cleanText([houseNumber, road].filter(Boolean).join(' '));
+
+  let fullParts = dedupeParts([roadLine, locality, region, postcode, country], placeName);
+  if (!fullParts.length) fullParts = fallbackAddressParts(item, placeName);
+
+  let shortParts;
+  if (roadLine && locality) {
+    shortParts = dedupeParts([roadLine, locality, country], placeName);
+  } else if (locality) {
+    shortParts = dedupeParts([locality, region, country], placeName);
+  } else if (region) {
+    shortParts = dedupeParts([region, country], placeName);
+  } else {
+    const fallback = fallbackAddressParts(item, placeName);
+    shortParts = fallback.length > 3 ? [fallback[0], fallback[1], fallback[fallback.length - 1]] : fallback;
+  }
+
+  return {
+    short: shortParts.join(' · '),
+    full: fullParts.join(', '),
+    locality,
+    region,
+    country,
+    countryCode
+  };
+}
+
+function humanizeSlug(value = '') {
+  const text = cleanText(value).replace(/[_-]+/g, ' ');
+  return text ? text.replace(/\b\w/g, letter => letter.toUpperCase()) : '';
+}
+
+function categoryPresentation(item = {}, query = '', category = '') {
+  const q = normalize(query);
+  const type = normalize(item.type);
+  const rawCategory = normalize(item.category);
+
+  if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) return { label: 'Body Shop', icon: '🚗🔧' };
+  if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) return { label: 'Brake Service', icon: '🚗🔧' };
+  if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) return { label: 'Oil Change', icon: '🚗🔧' };
+  if (/\btire\b|\btyre\b/.test(q)) return { label: 'Tire Shop', icon: '🚗🔧' };
+  if (/\bmechanic\b|\bauto repair\b|\bcar repair\b/.test(q)) return { label: 'Auto Repair', icon: '🚗🔧' };
+
+  const typeMap = {
+    restaurant: ['Restaurant', '🍽'],
+    cafe: ['Café', '☕'],
+    coffee_shop: ['Coffee', '☕'],
+    fast_food: ['Quick Bites', '🍽'],
+    bar: ['Bar & Lounge', '🍸'],
+    pub: ['Pub', '🍸'],
+    nightclub: ['Nightlife', '♫'],
+    clinic: ['Clinic', '✚'],
+    hospital: ['Hospital', '✚'],
+    doctors: ['Medical', '✚'],
+    dentist: ['Dentist', '✚'],
+    pharmacy: ['Pharmacy', '✚'],
+    park: ['Park', '🌿'],
+    garden: ['Garden', '🌿'],
+    car_repair: ['Auto Repair', '🚗🔧'],
+    car_parts: ['Auto Parts', '🚗'],
+    tyres: ['Tire Shop', '🚗🔧'],
+    clothes: ['Fashion', '🛍'],
+    shoes: ['Shoes', '🛍'],
+    jewelry: ['Jewelry', '🛍'],
+    furniture: ['Furniture', '🛍'],
+    supermarket: ['Shopping', '🛍'],
+    hotel: ['Hotel', '✈'],
+    motel: ['Stay', '✈'],
+    guest_house: ['Stay', '✈'],
+    car_rental: ['Car Rental', '✈'],
+    bowling_alley: ['Bowling', '🎯'],
+    amusement_arcade: ['Arcade', '🎮'],
+    amusement_park: ['Amusement Park', '🎯'],
+    miniature_golf: ['Mini Golf', '🎯']
+  };
+
+  if (typeMap[type]) return { label: typeMap[type][0], icon: typeMap[type][1] };
+
+  const categoryMap = {
+    restaurants: ['Restaurant', '🍽'],
+    medical: ['Medical', '✚'],
+    parks: ['Parks & Outdoors', '🌿'],
+    'home-services': ['Home Service', '⌂'],
+    auto: ['Auto Service', '🚗🔧'],
+    retail: ['Retail', '🛍'],
+    travel: ['Travel', '✈'],
+    'fun-games': ['Fun & Games', '🎯']
+  };
+  if (categoryMap[category]) return { label: categoryMap[category][0], icon: categoryMap[category][1] };
+
+  const fallback = humanizeSlug(type && type !== 'yes' ? type : rawCategory);
+  return { label: fallback || 'Local Place', icon: '◎' };
+}
+
+async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
   const params = new URLSearchParams({
     format: 'jsonv2',
     addressdetails: '1',
@@ -158,8 +320,8 @@ async function searchNominatim(query, viewbox) {
   const response = await fetch(`${NOMINATIM_URL}?${params}`, {
     headers: {
       'Accept': 'application/json',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'User-Agent': 'LoopAlpha/0.4 (+https://loop-alpha-nu.vercel.app/)',
+      'Accept-Language': language,
+      'User-Agent': 'LoopAlpha/0.5 (+https://loop-alpha-nu.vercel.app/)',
       'Referer': 'https://loop-alpha-nu.vercel.app/'
     }
   });
@@ -182,6 +344,7 @@ export default async function handler(req, res) {
   const lon = Number(req.query.lon);
   const scopeKey = SEARCH_SCOPES[req.query.scope] ? req.query.scope : 'local';
   const scope = SEARCH_SCOPES[scopeKey];
+  const language = cleanText(req.headers['accept-language'] || 'en-US,en;q=0.9').slice(0, 100);
 
   if (!candidates.length || !Number.isFinite(lat) || !Number.isFinite(lon) ||
       lat < -90 || lat > 90 || lon < -180 || lon > 180) {
@@ -201,7 +364,7 @@ export default async function handler(req, res) {
     const matchedQueries = [];
 
     for (const candidate of candidates) {
-      const found = await searchNominatim(candidate, viewbox);
+      const found = await searchNominatim(candidate, viewbox, language);
       matchedQueries.push(candidate);
 
       for (const item of found) {
@@ -217,8 +380,21 @@ export default async function handler(req, res) {
         if (seen.has(key)) continue;
         seen.add(key);
 
+        const loopName = placeNameFor(item);
+        const loopAddress = internationalAddressFor(item, loopName);
+        const loopCategory = categoryPresentation(item, query, category);
+
         merged.push({
           ...item,
+          loop_name: loopName,
+          loop_short_address: loopAddress.short,
+          loop_full_address: loopAddress.full,
+          loop_locality: loopAddress.locality,
+          loop_region: loopAddress.region,
+          loop_country: loopAddress.country,
+          loop_country_code: loopAddress.countryCode,
+          loop_category_label: loopCategory.label,
+          loop_category_icon: loopCategory.icon,
           loop_distance_miles: Math.round(distanceMiles * 10) / 10,
           loop_relevance: relevanceScore(item, query)
         });
