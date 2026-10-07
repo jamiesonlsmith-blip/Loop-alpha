@@ -1,4 +1,5 @@
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
 
 const SEARCH_SCOPES = {
   local: { maxMiles: 8, dLat: 0.12, dLon: 0.15, label: 'current Loop', next: 'expanded' },
@@ -18,70 +19,152 @@ function unique(values) {
   return [...new Set(values.map(normalize).filter(Boolean))];
 }
 
-function queryCandidates(value = '', category = '') {
+const SEARCH_VOCABULARY = [
+  {
+    key: 'brake-service',
+    match: /\bbrake(?:s| service| repair)?\b|\bbraking\b/i,
+    exact: q => [q, 'brake service', 'brake repair'],
+    related: ['auto repair', 'car repair', 'mechanic', 'garage', 'body shop'],
+    relatedPattern: /\b(auto|car|vehicle|mechanic|garage|repair|body|collision)\b/i,
+    relatedTypes: ['car_repair', 'car', 'garage'],
+    relatedNote: 'Related auto-service option · Brake service is not confirmed'
+  },
+  {
+    key: 'body-shop',
+    match: /\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/i,
+    exact: q => [q, 'auto body shop', 'collision repair', 'panel beater'],
+    related: ['auto repair', 'car repair', 'mechanic'],
+    relatedPattern: /\b(auto|car|vehicle|mechanic|garage|repair|body|collision|panel)\b/i,
+    relatedTypes: ['car_repair', 'car', 'garage'],
+    relatedNote: 'Related auto-service option · Body repair is not confirmed'
+  },
+  {
+    key: 'oil-change',
+    match: /\boil change\b|\blube\b|\blubrication\b/i,
+    exact: q => [q, 'oil change', 'lube service'],
+    related: ['auto repair', 'car repair', 'mechanic', 'service station'],
+    relatedPattern: /\b(auto|car|vehicle|mechanic|garage|repair|service station)\b/i,
+    relatedTypes: ['car_repair', 'car', 'fuel', 'garage'],
+    relatedNote: 'Related auto-service option · Oil-change service is not confirmed'
+  },
+  {
+    key: 'tire-service',
+    match: /\btire\b|\btyre\b|flat tire|flat tyre|wheel repair/i,
+    exact: q => [q, 'tire shop', 'tyre shop', 'tire repair', 'tyre repair'],
+    related: ['auto repair', 'car repair', 'mechanic'],
+    relatedPattern: /\b(auto|car|vehicle|mechanic|garage|repair|tire|tyre|wheel)\b/i,
+    relatedTypes: ['car_repair', 'car', 'tyres', 'garage'],
+    relatedNote: 'Related auto-service option · Tire service is not confirmed'
+  },
+  {
+    key: 'mechanic',
+    match: /\bmechanic\b|\bauto repair\b|\bcar repair\b|\brepair shop\b/i,
+    exact: q => [q, 'auto repair', 'car repair', 'mechanic', 'garage'],
+    related: ['body shop', 'service station'],
+    relatedPattern: /\b(auto|car|vehicle|mechanic|garage|repair|body|service station)\b/i,
+    relatedTypes: ['car_repair', 'car', 'fuel', 'garage'],
+    relatedNote: 'Related vehicle-service option'
+  },
+  {
+    key: 'urgent-care',
+    match: /\burgent care\b/i,
+    exact: q => [q, 'urgent care', 'walk-in clinic'],
+    related: ['clinic', 'medical centre', 'medical center'],
+    relatedPattern: /\b(clinic|medical|health|doctor|hospital)\b/i,
+    relatedTypes: ['clinic', 'hospital', 'doctors'],
+    relatedNote: 'Related medical option · Walk-in availability is not confirmed'
+  },
+  {
+    key: 'dentist',
+    match: /\bdentist\b|\bdental\b/i,
+    exact: q => [q, 'dentist', 'dental clinic'],
+    related: ['clinic'],
+    relatedPattern: /\b(dentist|dental|clinic|medical|health)\b/i,
+    relatedTypes: ['dentist', 'clinic'],
+    relatedNote: 'Related care option · Dental services are not confirmed'
+  },
+  {
+    key: 'electrician',
+    match: /\belectrician\b|\belectrical repair\b/i,
+    exact: q => [q, 'electrician', 'electrical contractor'],
+    related: ['home repair', 'handyman'],
+    relatedPattern: /\b(electric|electrical|contractor|home repair|handyman)\b/i,
+    relatedTypes: ['electrician', 'handyman'],
+    relatedNote: 'Related home-service option · Electrical service is not confirmed'
+  },
+  {
+    key: 'plumber',
+    match: /\bplumber\b|\bplumbing\b/i,
+    exact: q => [q, 'plumber', 'plumbing service'],
+    related: ['home repair', 'handyman'],
+    relatedPattern: /\b(plumb|plumbing|home repair|handyman)\b/i,
+    relatedTypes: ['plumber', 'handyman'],
+    relatedNote: 'Related home-service option · Plumbing service is not confirmed'
+  },
+  {
+    key: 'hvac',
+    match: /\bhvac\b|\bac repair\b|air conditioning repair|air conditioner repair/i,
+    exact: q => [q, 'hvac', 'air conditioning repair'],
+    related: ['home repair', 'handyman'],
+    relatedPattern: /\b(hvac|air condition|cooling|home repair|handyman)\b/i,
+    relatedTypes: ['hvac', 'handyman'],
+    relatedNote: 'Related home-service option · AC/HVAC service is not confirmed'
+  }
+];
+
+function searchIntent(value = '', category = '') {
   const q = normalize(value);
-  if (!q) return [];
+  const vocabulary = SEARCH_VOCABULARY.find(item => item.match.test(q));
+  if (vocabulary) {
+    return {
+      key: vocabulary.key,
+      exactQueries: unique(vocabulary.exact(q)),
+      relatedQueries: unique(vocabulary.related || []),
+      relatedPattern: vocabulary.relatedPattern || null,
+      relatedTypes: vocabulary.relatedTypes || [],
+      relatedNote: vocabulary.relatedNote || 'Related option',
+      allowRelated: true
+    };
+  }
 
-  // Preserve specific intent instead of widening prematurely.
   if (/\brooftop\b|\broof[ -]?top\b/.test(q)) {
-    return unique([q, 'rooftop bar', 'rooftop lounge', 'rooftop restaurant']);
+    return { key: 'rooftop', exactQueries: unique([q, 'rooftop bar', 'rooftop lounge', 'rooftop restaurant']), relatedQueries: [], allowRelated: false };
   }
-  if (/\bbrunch\b/.test(q)) return unique([q, 'brunch', 'brunch restaurant']);
-  if (/\bsushi\b/.test(q)) return unique([q, 'sushi restaurant']);
-  if (/\bvegan\b/.test(q)) return unique([q, 'vegan restaurant']);
-  if (/\bcoffee\b|\bcafe\b/.test(q)) return unique([q, 'coffee']);
-  if (/\bpizza\b/.test(q)) return unique([q, 'pizza']);
+  if (/\bbrunch\b/.test(q)) return { key: 'brunch', exactQueries: unique([q, 'brunch', 'brunch restaurant', 'breakfast restaurant']), relatedQueries: [], allowRelated: false };
+  if (/\bsushi\b/.test(q)) return { key: 'sushi', exactQueries: unique([q, 'sushi restaurant', 'japanese restaurant']), relatedQueries: [], allowRelated: false };
+  if (/\bvegan\b/.test(q)) return { key: 'vegan', exactQueries: unique([q, 'vegan restaurant']), relatedQueries: [], allowRelated: false };
+  if (/\bcoffee\b|\bcafe\b/.test(q)) return { key: 'coffee', exactQueries: unique([q, 'coffee', 'cafe']), relatedQueries: [], allowRelated: false };
+  if (/\bpizza\b/.test(q)) return { key: 'pizza', exactQueries: unique([q, 'pizza', 'pizzeria']), relatedQueries: [], allowRelated: false };
 
-  // Auto sub-intents stay specific so a brake search does not turn into a
-  // generic list of every car-repair business nearby.
-  if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) {
-    return unique([q, 'auto body shop', 'collision repair']);
-  }
-  if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) {
-    return unique([q, 'brake service', 'brake repair']);
-  }
-  if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) {
-    return unique([q, 'oil change', 'lube service']);
-  }
-  if (/tire|tyre|flat tire|flat tyre|change my tire|change a tire|tire repair|wheel repair/.test(q)) {
-    return unique([q, 'tire shop', 'tyre shop']);
-  }
-  if (/car shop|auto shop|repair shop|mechanic|auto repair|car repair/.test(q)) {
-    return unique([q, 'auto repair', 'car repair', 'mechanic']);
-  }
-
-  if (/urgent care|doctor|medical|clinic/.test(q)) return unique([q, 'clinic']);
-  if (/\bbowling\b/.test(q)) return unique([q, 'bowling alley', 'bowling']);
-  if (/\barcade\b|video arcade|game arcade/.test(q)) return unique([q, 'arcade', 'amusement arcade', 'family entertainment center']);
-  if (/mini golf|miniature golf|putt[ -]?putt/.test(q)) return unique([q, 'miniature golf', 'mini golf']);
-  if (/go[ -]?karts?|go[ -]?cart|karting/.test(q)) return unique([q, 'go kart', 'karting']);
-  if (/roller skating|roller rink|skating rink/.test(q)) return unique([q, 'roller skating', 'skating rink']);
-  if (/escape room/.test(q)) return unique([q, 'escape room']);
-  if (/laser tag/.test(q)) return unique([q, 'laser tag']);
-  if (/trampoline/.test(q)) return unique([q, 'trampoline park']);
+  if (/\bbowling\b/.test(q)) return { key: 'bowling', exactQueries: unique([q, 'bowling alley', 'bowling']), relatedQueries: [], allowRelated: false };
+  if (/\barcade\b|video arcade|game arcade/.test(q)) return { key: 'arcade', exactQueries: unique([q, 'arcade', 'amusement arcade', 'family entertainment center']), relatedQueries: [], allowRelated: false };
+  if (/mini golf|miniature golf|putt[ -]?putt/.test(q)) return { key: 'mini-golf', exactQueries: unique([q, 'miniature golf', 'mini golf']), relatedQueries: [], allowRelated: false };
+  if (/go[ -]?karts?|go[ -]?cart|karting/.test(q)) return { key: 'karting', exactQueries: unique([q, 'go kart', 'karting']), relatedQueries: [], allowRelated: false };
+  if (/roller skating|roller rink|skating rink/.test(q)) return { key: 'roller-skating', exactQueries: unique([q, 'roller skating', 'skating rink']), relatedQueries: [], allowRelated: false };
+  if (/escape room/.test(q)) return { key: 'escape-room', exactQueries: unique([q, 'escape room']), relatedQueries: [], allowRelated: false };
+  if (/laser tag/.test(q)) return { key: 'laser-tag', exactQueries: unique([q, 'laser tag']), relatedQueries: [], allowRelated: false };
+  if (/trampoline/.test(q)) return { key: 'trampoline', exactQueries: unique([q, 'trampoline park']), relatedQueries: [], allowRelated: false };
   if (/action park|amusement park|theme park|family fun|fun center|entertainment center/.test(q)) {
-    return unique([q, 'amusement park', 'family entertainment center', 'arcade']);
+    return { key: 'fun-center', exactQueries: unique([q, 'amusement park', 'family entertainment center', 'arcade']), relatedQueries: [], allowRelated: false };
   }
+
   if (category === 'fun-games' && /^(fun|games|fun and games|something fun|activities|things to do|nearby|something nearby)$/.test(q)) {
-    return ['family entertainment center', 'arcade', 'bowling alley', 'amusement park'];
+    return { key: 'fun-general', exactQueries: ['family entertainment center', 'arcade', 'bowling alley', 'amusement park'], relatedQueries: [], allowRelated: false };
   }
-
   if (/^(restaurant|restaurants|food|places to eat|eat)$/.test(q) || (category === 'restaurants' && /^(nearby|something nearby)$/.test(q))) {
-    return ['restaurant'];
+    return { key: 'restaurant-general', exactQueries: ['restaurant'], relatedQueries: [], allowRelated: false };
   }
-  if (/^(park|parks)$/.test(q)) return ['park'];
-  if (/^(shopping|stores|retail)$/.test(q)) return ['shopping'];
+  if (/^(park|parks)$/.test(q)) return { key: 'parks', exactQueries: ['park'], relatedQueries: [], allowRelated: false };
+  if (/^(shopping|stores|retail)$/.test(q)) return { key: 'retail', exactQueries: ['shopping'], relatedQueries: [], allowRelated: false };
 
-  return [q];
+  return { key: 'general', exactQueries: [q], relatedQueries: [], allowRelated: false };
 }
 
 function hardIntentGroups(value = '') {
   const q = normalize(value);
   const groups = [];
 
-  if (/\brooftop\b|\broof[ -]?top\b/.test(q)) {
-    groups.push(/\brooftop\b|\broof[ -]?top\b|\broof deck\b|\broof terrace\b|\bsky bar\b|\bsky lounge\b/i);
-  }
+  if (/\brooftop\b|\broof[ -]?top\b/.test(q)) groups.push(/\brooftop\b|\broof[ -]?top\b|\broof deck\b|\broof terrace\b|\bsky bar\b|\bsky lounge\b/i);
   if (/\bsushi\b/.test(q)) groups.push(/\bsushi\b|\bjapanese\b/i);
   if (/\bmexican\b/.test(q)) groups.push(/\bmexican\b|\btaqueria\b|\btaco\b/i);
   if (/\bitalian\b/.test(q)) groups.push(/\bitalian\b|\btrattoria\b|\bpizzeria\b/i);
@@ -90,19 +173,18 @@ function hardIntentGroups(value = '') {
   if (/\bcoffee\b|\bcafe\b/.test(q)) groups.push(/\bcoffee\b|\bcafe\b|\bcafé\b/i);
   if (/\bpizza\b/.test(q)) groups.push(/\bpizza\b|\bpizzeria\b/i);
 
-  if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) {
-    groups.push(/\bbody shop\b|\bauto body\b|\bcollision\b|\bpanel beat(?:er|ing)\b|\bcoachwork\b/i);
-  }
-  if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) {
-    groups.push(/\bbrake\b|\bbrakes\b|\bbraking\b/i);
-  }
-  if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) {
-    groups.push(/\boil change\b|\blube\b|\blubrication\b/i);
-  }
+  if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) groups.push(/\bbody shop\b|\bauto body\b|\bcollision\b|\bpanel beat(?:er|ing)\b|\bcoachwork\b/i);
+  if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) groups.push(/\bbrake\b|\bbrakes\b|\bbraking\b/i);
+  if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) groups.push(/\boil change\b|\blube\b|\blubrication\b/i);
   if (/\btire\b|\btyre\b/.test(q)) groups.push(/\btire\b|\btyre\b|\btyres\b/i);
   if (/\bmechanic\b|\bauto repair\b|\bcar repair\b/.test(q)) groups.push(/\bmechanic\b|\bauto repair\b|\bcar repair\b|\bgarage\b/i);
 
   if (/\burgent care\b/.test(q)) groups.push(/\burgent care\b|\bclinic\b/i);
+  if (/\bdentist\b|\bdental\b/.test(q)) groups.push(/\bdentist\b|\bdental\b/i);
+  if (/\belectrician\b|\belectrical repair\b/.test(q)) groups.push(/\belectric\b|\belectrical\b/i);
+  if (/\bplumber\b|\bplumbing\b/.test(q)) groups.push(/\bplumb\b|\bplumbing\b/i);
+  if (/\bhvac\b|\bac repair\b|air conditioning repair|air conditioner repair/.test(q)) groups.push(/\bhvac\b|air condition|cooling/i);
+
   if (/\bbowling\b/.test(q)) groups.push(/\bbowling\b|\bbowling alley\b/i);
   if (/\barcade\b|video arcade|game arcade/.test(q)) groups.push(/\barcade\b|\bamusement arcade\b|\bfamily entertainment\b/i);
   if (/mini golf|miniature golf|putt[ -]?putt/.test(q)) groups.push(/\bmini golf\b|\bminiature golf\b|\bputt[ -]?putt\b/i);
@@ -120,15 +202,8 @@ function itemSearchText(item = {}) {
   const extras = item.extratags && typeof item.extratags === 'object' ? Object.values(item.extratags) : [];
   const names = item.namedetails && typeof item.namedetails === 'object' ? Object.values(item.namedetails) : [];
   const address = item.address && typeof item.address === 'object' ? Object.values(item.address) : [];
-  return [
-    item.name,
-    item.display_name,
-    item.type,
-    item.category,
-    ...address,
-    ...extras,
-    ...names
-  ].filter(Boolean).join(' ').toLowerCase();
+  return [item.name, item.display_name, item.type, item.category, ...address, ...extras, ...names]
+    .filter(Boolean).join(' ').toLowerCase();
 }
 
 function meaningfulTokens(value = '') {
@@ -139,25 +214,31 @@ function meaningfulTokens(value = '') {
   return normalize(value).split(/[^a-z0-9]+/).filter(token => token.length > 2 && !stop.has(token));
 }
 
-function relevanceScore(item, query) {
+function relevanceScore(item, query, matchType = 'direct') {
   const text = itemSearchText(item);
   const q = normalize(query);
-  let score = 0;
-
+  let score = matchType === 'direct' ? 20 : -12;
   if (q && text.includes(q)) score += 20;
-  for (const token of meaningfulTokens(q)) {
-    if (text.includes(token)) score += 4;
-  }
-
+  for (const token of meaningfulTokens(q)) if (text.includes(token)) score += 4;
   const type = String(item.type || '').toLowerCase();
   if (['restaurant','bar','pub','cafe','nightclub','fast_food','clinic','hospital','park','car_repair'].includes(type)) score += 1;
-
   return score;
 }
 
 function passesIntent(item, query) {
+  const groups = hardIntentGroups(query);
+  if (!groups.length) return true;
   const text = itemSearchText(item);
-  return hardIntentGroups(query).every(pattern => pattern.test(text));
+  return groups.every(pattern => pattern.test(text));
+}
+
+function passesRelatedIntent(item, intent) {
+  if (!intent || !intent.allowRelated) return false;
+  const type = normalize(item.type);
+  const category = normalize(item.category);
+  if ((intent.relatedTypes || []).includes(type) || (intent.relatedTypes || []).includes(category)) return true;
+  const text = itemSearchText(item);
+  return intent.relatedPattern ? intent.relatedPattern.test(text) : false;
 }
 
 function milesBetween(lat1, lon1, lat2, lon2) {
@@ -216,13 +297,10 @@ function internationalAddressFor(item = {}, placeName = '') {
   if (!fullParts.length) fullParts = fallbackAddressParts(item, placeName);
 
   let shortParts;
-  if (roadLine && locality) {
-    shortParts = dedupeParts([roadLine, locality, country], placeName);
-  } else if (locality) {
-    shortParts = dedupeParts([locality, region, country], placeName);
-  } else if (region) {
-    shortParts = dedupeParts([region, country], placeName);
-  } else {
+  if (roadLine && locality) shortParts = dedupeParts([roadLine, locality, country], placeName);
+  else if (locality) shortParts = dedupeParts([locality, region, country], placeName);
+  else if (region) shortParts = dedupeParts([region, country], placeName);
+  else {
     const fallback = fallbackAddressParts(item, placeName);
     shortParts = fallback.length > 3 ? [fallback[0], fallback[1], fallback[fallback.length - 1]] : fallback;
   }
@@ -242,66 +320,142 @@ function humanizeSlug(value = '') {
   return text ? text.replace(/\b\w/g, letter => letter.toUpperCase()) : '';
 }
 
-function categoryPresentation(item = {}, query = '', category = '') {
+function categoryPresentation(item = {}, query = '', category = '', matchType = 'direct') {
   const q = normalize(query);
   const type = normalize(item.type);
   const rawCategory = normalize(item.category);
 
-  if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) return { label: 'Body Shop', icon: '🚗🔧' };
-  if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) return { label: 'Brake Service', icon: '🚗🔧' };
-  if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) return { label: 'Oil Change', icon: '🚗🔧' };
-  if (/\btire\b|\btyre\b/.test(q)) return { label: 'Tire Shop', icon: '🚗🔧' };
-  if (/\bmechanic\b|\bauto repair\b|\bcar repair\b/.test(q)) return { label: 'Auto Repair', icon: '🚗🔧' };
+  if (matchType === 'direct') {
+    if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) return { label: 'Body Shop', icon: '🚗🔧' };
+    if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) return { label: 'Brake Service', icon: '🚗🔧' };
+    if (/\boil change\b|\blube\b|\blubrication\b/.test(q)) return { label: 'Oil Change', icon: '🚗🔧' };
+    if (/\btire\b|\btyre\b/.test(q)) return { label: 'Tire Shop', icon: '🚗🔧' };
+    if (/\bmechanic\b|\bauto repair\b|\bcar repair\b/.test(q)) return { label: 'Auto Repair', icon: '🚗🔧' };
+  }
 
   const typeMap = {
-    restaurant: ['Restaurant', '🍽'],
-    cafe: ['Café', '☕'],
-    coffee_shop: ['Coffee', '☕'],
-    fast_food: ['Quick Bites', '🍽'],
-    bar: ['Bar & Lounge', '🍸'],
-    pub: ['Pub', '🍸'],
-    nightclub: ['Nightlife', '♫'],
-    clinic: ['Clinic', '✚'],
-    hospital: ['Hospital', '✚'],
-    doctors: ['Medical', '✚'],
-    dentist: ['Dentist', '✚'],
-    pharmacy: ['Pharmacy', '✚'],
-    park: ['Park', '🌿'],
-    garden: ['Garden', '🌿'],
-    car_repair: ['Auto Repair', '🚗🔧'],
-    car_parts: ['Auto Parts', '🚗'],
-    tyres: ['Tire Shop', '🚗🔧'],
-    clothes: ['Fashion', '🛍'],
-    shoes: ['Shoes', '🛍'],
-    jewelry: ['Jewelry', '🛍'],
-    furniture: ['Furniture', '🛍'],
-    supermarket: ['Shopping', '🛍'],
-    hotel: ['Hotel', '✈'],
-    motel: ['Stay', '✈'],
-    guest_house: ['Stay', '✈'],
-    car_rental: ['Car Rental', '✈'],
-    bowling_alley: ['Bowling', '🎯'],
-    amusement_arcade: ['Arcade', '🎮'],
-    amusement_park: ['Amusement Park', '🎯'],
-    miniature_golf: ['Mini Golf', '🎯']
+    restaurant: ['Restaurant', '🍽'], cafe: ['Café', '☕'], coffee_shop: ['Coffee', '☕'],
+    fast_food: ['Quick Bites', '🍽'], bar: ['Bar & Lounge', '🍸'], pub: ['Pub', '🍸'],
+    nightclub: ['Nightlife', '♫'], clinic: ['Clinic', '✚'], hospital: ['Hospital', '✚'],
+    doctors: ['Medical', '✚'], dentist: ['Dentist', '✚'], pharmacy: ['Pharmacy', '✚'],
+    park: ['Park', '🌿'], garden: ['Garden', '🌿'], car_repair: ['Auto Repair', '🚗🔧'],
+    car_parts: ['Auto Parts', '🚗'], tyres: ['Tire Shop', '🚗🔧'], clothes: ['Fashion', '🛍'],
+    shoes: ['Shoes', '🛍'], jewelry: ['Jewelry', '🛍'], furniture: ['Furniture', '🛍'],
+    supermarket: ['Shopping', '🛍'], hotel: ['Hotel', '✈'], motel: ['Stay', '✈'],
+    guest_house: ['Stay', '✈'], car_rental: ['Car Rental', '✈'], bowling_alley: ['Bowling', '🎯'],
+    amusement_arcade: ['Arcade', '🎮'], amusement_park: ['Amusement Park', '🎯'],
+    miniature_golf: ['Mini Golf', '🎯'], electrician: ['Electrician', '⌂'], plumber: ['Plumber', '⌂']
   };
-
   if (typeMap[type]) return { label: typeMap[type][0], icon: typeMap[type][1] };
 
   const categoryMap = {
-    restaurants: ['Restaurant', '🍽'],
-    medical: ['Medical', '✚'],
-    parks: ['Parks & Outdoors', '🌿'],
-    'home-services': ['Home Service', '⌂'],
-    auto: ['Auto Service', '🚗🔧'],
-    retail: ['Retail', '🛍'],
-    travel: ['Travel', '✈'],
-    'fun-games': ['Fun & Games', '🎯']
+    restaurants: ['Restaurant', '🍽'], medical: ['Medical', '✚'], parks: ['Parks & Outdoors', '🌿'],
+    'home-services': ['Home Service', '⌂'], auto: ['Auto Service', '🚗🔧'], retail: ['Retail', '🛍'],
+    travel: ['Travel', '✈'], 'fun-games': ['Fun & Games', '🎯']
   };
   if (categoryMap[category]) return { label: categoryMap[category][0], icon: categoryMap[category][1] };
 
   const fallback = humanizeSlug(type && type !== 'yes' ? type : rawCategory);
   return { label: fallback || 'Local Place', icon: '◎' };
+}
+
+function commonsFileUrl(fileName, width = 760) {
+  const file = cleanText(fileName).replace(/^File:/i, '');
+  if (!file) return '';
+  return 'https://commons.wikimedia.org/wiki/Special:Redirect/file/' + encodeURIComponent(file) + '?width=' + width;
+}
+
+function commonsSourceUrl(fileName) {
+  const file = cleanText(fileName).replace(/^File:/i, '').replace(/ /g, '_');
+  return file ? 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file) : '';
+}
+
+function allowedWikimediaUrl(value = '') {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return '';
+    const host = url.hostname.toLowerCase();
+    return host === 'upload.wikimedia.org' || host === 'commons.wikimedia.org' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function directPhotoFor(item = {}) {
+  const extras = item.extratags && typeof item.extratags === 'object' ? item.extratags : {};
+  const image = cleanText(extras.image);
+  const commons = cleanText(extras.wikimedia_commons);
+
+  if (/^File:/i.test(image)) {
+    return { url: commonsFileUrl(image), sourceUrl: commonsSourceUrl(image), galleryUrl: commonsSourceUrl(image), credit: 'Wikimedia Commons' };
+  }
+  const safeImage = allowedWikimediaUrl(image);
+  if (safeImage) {
+    return { url: safeImage, sourceUrl: safeImage, galleryUrl: safeImage, credit: 'Wikimedia Commons' };
+  }
+  if (/^File:/i.test(commons)) {
+    return { url: commonsFileUrl(commons), sourceUrl: commonsSourceUrl(commons), galleryUrl: commonsSourceUrl(commons), credit: 'Wikimedia Commons' };
+  }
+  if (/^Category:/i.test(commons)) {
+    const category = commons.replace(/^Category:/i, '').replace(/ /g, '_');
+    return { url: '', sourceUrl: '', galleryUrl: 'https://commons.wikimedia.org/wiki/Category:' + encodeURIComponent(category), credit: 'Wikimedia Commons' };
+  }
+  return { url: '', sourceUrl: '', galleryUrl: '', credit: '' };
+}
+
+async function wikidataPhotos(items = []) {
+  const ids = unique(items.map(item => {
+    const extras = item.extratags && typeof item.extratags === 'object' ? item.extratags : {};
+    const id = cleanText(extras.wikidata).toUpperCase();
+    return /^Q\d+$/.test(id) ? id : '';
+  })).slice(0, 50);
+
+  if (!ids.length) return new Map();
+
+  try {
+    const params = new URLSearchParams({
+      action: 'wbgetentities',
+      ids: ids.join('|'),
+      props: 'claims',
+      format: 'json',
+      origin: '*'
+    });
+    const response = await fetch(WIKIDATA_API + '?' + params.toString(), {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'LoopAlpha/0.6 (+https://loop-alpha-nu.vercel.app/)' }
+    });
+    if (!response.ok) return new Map();
+    const data = await response.json();
+    const map = new Map();
+
+    for (const id of ids) {
+      const claims = data && data.entities && data.entities[id] && data.entities[id].claims;
+      const p18 = claims && Array.isArray(claims.P18) ? claims.P18[0] : null;
+      const file = p18 && p18.mainsnak && p18.mainsnak.datavalue && cleanText(p18.mainsnak.datavalue.value);
+      if (file) map.set(id, { url: commonsFileUrl(file), sourceUrl: commonsSourceUrl(file), galleryUrl: commonsSourceUrl(file), credit: 'Wikimedia Commons' });
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+async function addPhotos(items = []) {
+  const wikiMap = await wikidataPhotos(items);
+  return items.map(item => {
+    const direct = directPhotoFor(item);
+    const extras = item.extratags && typeof item.extratags === 'object' ? item.extratags : {};
+    const qid = cleanText(extras.wikidata).toUpperCase();
+    const fromWiki = /^Q\d+$/.test(qid) ? wikiMap.get(qid) : null;
+    const photo = direct.url ? direct : (fromWiki || direct);
+
+    return {
+      ...item,
+      loop_photo_url: photo && photo.url ? photo.url : '',
+      loop_photo_source_url: photo && photo.sourceUrl ? photo.sourceUrl : '',
+      loop_photo_gallery_url: direct.galleryUrl || (photo && photo.galleryUrl) || '',
+      loop_photo_credit: photo && photo.credit ? photo.credit : ''
+    };
+  });
 }
 
 async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
@@ -321,7 +475,7 @@ async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
     headers: {
       'Accept': 'application/json',
       'Accept-Language': language,
-      'User-Agent': 'LoopAlpha/0.5 (+https://loop-alpha-nu.vercel.app/)',
+      'User-Agent': 'LoopAlpha/0.6 (+https://loop-alpha-nu.vercel.app/)',
       'Referer': 'https://loop-alpha-nu.vercel.app/'
     }
   });
@@ -329,6 +483,36 @@ async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
   if (!response.ok) throw new Error('provider');
   const items = await response.json();
   return Array.isArray(items) ? items : [];
+}
+
+function resultKey(item = {}) {
+  return String(item.place_id || item.osm_id || item.display_name || Math.random());
+}
+
+function enrichItem(item, query, category, lat, lon, matchType, matchNote = '') {
+  const itemLat = Number(item.lat);
+  const itemLon = Number(item.lon);
+  const distanceMiles = milesBetween(lat, lon, itemLat, itemLon);
+  const loopName = placeNameFor(item);
+  const loopAddress = internationalAddressFor(item, loopName);
+  const loopCategory = categoryPresentation(item, query, category, matchType);
+
+  return {
+    ...item,
+    loop_name: loopName,
+    loop_short_address: loopAddress.short,
+    loop_full_address: loopAddress.full,
+    loop_locality: loopAddress.locality,
+    loop_region: loopAddress.region,
+    loop_country: loopAddress.country,
+    loop_country_code: loopAddress.countryCode,
+    loop_category_label: loopCategory.label,
+    loop_category_icon: loopCategory.icon,
+    loop_match_type: matchType,
+    loop_match_note: matchNote,
+    loop_distance_miles: Math.round(distanceMiles * 10) / 10,
+    loop_relevance: relevanceScore(item, query, matchType)
+  };
 }
 
 export default async function handler(req, res) {
@@ -339,31 +523,28 @@ export default async function handler(req, res) {
 
   const category = normalize(req.query.category);
   const query = normalize(req.query.q);
-  const candidates = queryCandidates(query, category);
+  const intent = searchIntent(query, category);
   const lat = Number(req.query.lat);
   const lon = Number(req.query.lon);
   const scopeKey = SEARCH_SCOPES[req.query.scope] ? req.query.scope : 'local';
   const scope = SEARCH_SCOPES[scopeKey];
   const language = cleanText(req.headers['accept-language'] || 'en-US,en;q=0.9').slice(0, 100);
 
-  if (!candidates.length || !Number.isFinite(lat) || !Number.isFinite(lon) ||
+  if (!intent.exactQueries.length || !Number.isFinite(lat) || !Number.isFinite(lon) ||
       lat < -90 || lat > 90 || lon < -180 || lon > 180) {
     return res.status(400).json({ error: 'A search term and valid location are required.' });
   }
 
-  const viewbox = [
-    lon - scope.dLon,
-    lat + scope.dLat,
-    lon + scope.dLon,
-    lat - scope.dLat
-  ].join(',');
+  const viewbox = [lon - scope.dLon, lat + scope.dLat, lon + scope.dLon, lat - scope.dLat].join(',');
 
   try {
     const merged = [];
     const seen = new Set();
     const matchedQueries = [];
+    let directCount = 0;
+    let relatedCount = 0;
 
-    for (const candidate of candidates) {
+    for (const candidate of intent.exactQueries) {
       const found = await searchNominatim(candidate, viewbox, language);
       matchedQueries.push(candidate);
 
@@ -374,39 +555,56 @@ export default async function handler(req, res) {
 
         const distanceMiles = milesBetween(lat, lon, itemLat, itemLon);
         if (distanceMiles > scope.maxMiles) continue;
-        if (!passesIntent(item, query)) continue;
 
-        const key = String(item.place_id || item.osm_id || item.display_name);
+        const strictGroups = hardIntentGroups(query);
+        const providerDirect = intent.key !== 'general' && candidate !== query && passesRelatedIntent(item, intent);
+        if (strictGroups.length && !passesIntent(item, query) && !providerDirect) continue;
+
+        const key = resultKey(item);
         if (seen.has(key)) continue;
         seen.add(key);
 
-        const loopName = placeNameFor(item);
-        const loopAddress = internationalAddressFor(item, loopName);
-        const loopCategory = categoryPresentation(item, query, category);
+        merged.push(enrichItem(item, query, category, lat, lon, 'direct'));
+        directCount++;
+      }
+    }
 
-        merged.push({
-          ...item,
-          loop_name: loopName,
-          loop_short_address: loopAddress.short,
-          loop_full_address: loopAddress.full,
-          loop_locality: loopAddress.locality,
-          loop_region: loopAddress.region,
-          loop_country: loopAddress.country,
-          loop_country_code: loopAddress.countryCode,
-          loop_category_label: loopCategory.label,
-          loop_category_icon: loopCategory.icon,
-          loop_distance_miles: Math.round(distanceMiles * 10) / 10,
-          loop_relevance: relevanceScore(item, query)
-        });
+    // If the literal/synonym search is sparse, widen semantically inside the same
+    // requested category before widening geography. These are clearly marked as
+    // related options so Loop stays useful without pretending a service is confirmed.
+    if (intent.allowRelated && merged.length < 6) {
+      for (const candidate of intent.relatedQueries) {
+        const found = await searchNominatim(candidate, viewbox, language);
+        matchedQueries.push(candidate);
+
+        for (const item of found) {
+          const itemLat = Number(item.lat);
+          const itemLon = Number(item.lon);
+          if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon)) continue;
+
+          const distanceMiles = milesBetween(lat, lon, itemLat, itemLon);
+          if (distanceMiles > scope.maxMiles || !passesRelatedIntent(item, intent)) continue;
+
+          const key = resultKey(item);
+          if (seen.has(key)) continue;
+          seen.add(key);
+
+          merged.push(enrichItem(item, query, category, lat, lon, 'related', intent.relatedNote));
+          relatedCount++;
+          if (merged.length >= 15) break;
+        }
+        if (merged.length >= 15) break;
       }
     }
 
     merged.sort((a, b) => {
+      if (a.loop_match_type !== b.loop_match_type) return a.loop_match_type === 'direct' ? -1 : 1;
       if (b.loop_relevance !== a.loop_relevance) return b.loop_relevance - a.loop_relevance;
       return a.loop_distance_miles - b.loop_distance_miles;
     });
 
-    const items = merged.slice(0, 15).map(({ loop_relevance, ...item }) => item);
+    const withPhotos = await addPhotos(merged.slice(0, 15));
+    const items = withPhotos.map(({ loop_relevance, ...item }) => item);
 
     res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
     return res.status(200).json({
@@ -417,10 +615,14 @@ export default async function handler(req, res) {
       canExpand: Boolean(scope.next),
       nextScope: scope.next,
       strictIntent: hardIntentGroups(query).length > 0,
+      intentKey: intent.key,
+      directCount,
+      relatedCount,
       items,
-      attribution: '© OpenStreetMap contributors'
+      attribution: 'Place data © OpenStreetMap contributors. Photos, when available, © Wikimedia Commons contributors.'
     });
   } catch (error) {
+    console.error('Loop place search error:', error && error.message ? error.message : error);
     return res.status(502).json({ error: 'Place search is temporarily unavailable.' });
   }
 }
