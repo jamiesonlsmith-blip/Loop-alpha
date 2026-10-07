@@ -783,7 +783,7 @@
 <h2>Install Loop Alpha</h2>
 <p id="installHelpIntro" class="panel-note">Add Loop to your phone so it opens from its own icon in standalone app mode.</p>
 <div id="installHelpSteps" class="policy-note"></div>
-<div class="dialog-actions"><button class="primary" onclick="document.getElementById('installHelp').close()">Got it</button></div>
+<div class="dialog-actions"><button class="secondary" onclick="document.getElementById('installHelp').close()">Close</button><button class="primary" onclick="document.getElementById('installHelp').close();requestInstall()">Retry app install</button></div>
 </div>
 </dialog>
 <dialog id="feedbackDialog">
@@ -839,24 +839,36 @@
       if(loopIsStandalone()){title.textContent='Loop is installed';copy.textContent='Opening in standalone app mode';icon.textContent='✓';chevron.textContent='';return}
       title.textContent='Add Loop to this phone';icon.textContent='↓';chevron.textContent='›';
       if(/iPhone|iPad|iPod/i.test(navigator.userAgent))copy.textContent='Add Loop to your Home Screen from Safari';
-      else if(deferredInstallPrompt)copy.textContent='Install Loop Alpha with its own home-screen icon';
-      else copy.textContent='Preparing standalone app install — refresh once if Install app is not yet available';
+      else if(deferredInstallPrompt){title.textContent='Install Loop app';copy.textContent='Ready to install as a standalone app';}
+      else copy.textContent='Preparing the standalone app installer — keep Loop open for a moment, then tap again';
+    }
+    async function promptStandaloneInstall(){
+      if(!deferredInstallPrompt)return false;
+      const promptEvent=deferredInstallPrompt;
+      deferredInstallPrompt=null;
+      promptEvent.prompt();
+      const choice=await promptEvent.userChoice;
+      syncInstallState();
+      if(choice.outcome==='accepted'){notify('Loop is installing as an app');return true}
+      return false;
     }
     async function requestInstall(){
-      if(loopIsStandalone()){notify('Loop is already installed on this phone');return}
-      if(deferredInstallPrompt){
-        deferredInstallPrompt.prompt();
-        const choice=await deferredInstallPrompt.userChoice;
-        deferredInstallPrompt=null;
-        syncInstallState();
-        if(choice.outcome==='accepted')notify('Loop is being added to your home screen');
-        return;
+      if(loopIsStandalone()){notify('Loop is already installed as an app');return}
+      if(await promptStandaloneInstall())return;
+
+      if('serviceWorker' in navigator){
+        try{
+          await registerLoopServiceWorker();
+          await new Promise(resolve=>setTimeout(resolve,1200));
+          if(await promptStandaloneInstall())return;
+        }catch(error){console.error('Loop install preparation failed',error)}
       }
+
       const box=document.getElementById('installHelpSteps');
       if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){
         box.innerHTML='<strong>On iPhone or iPad:</strong><br>1. Open Loop in Safari.<br>2. Tap the Share button.<br>3. Choose <b>Add to Home Screen</b>.<br>4. Tap <b>Add</b>.';
       }else{
-        box.innerHTML='<strong>Install Loop as an app:</strong><br>1. Make sure you are viewing <b>loop-alpha-nu.vercel.app</b> in Chrome.<br>2. Refresh Loop once and wait a moment for the app to finish registering.<br>3. Open Chrome’s menu and choose <b>Install app</b>.<br><br><strong>Important:</strong> If Chrome only shows <b>Add to Home screen</b>, do not use that option yet — it may create a browser shortcut instead of the standalone Loop app. Refresh once, reopen Loop, and try <b>Install app</b> again.';
+        box.innerHTML='<strong>Loop is preparing the real app installer.</strong><br><br>Keep this Loop page open for about 30 seconds and tap around once or twice, then close this message and tap <b>Install Loop app</b> again.<br><br><strong>Do not choose “Create shortcut” or a plain “Add to Home screen” shortcut.</strong> The correct Chrome flow should identify Loop as an app and install it in standalone mode.';
       }
       document.getElementById('installHelp').showModal();
     }
@@ -893,8 +905,15 @@
     }
     window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;syncInstallState()});
     window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;syncInstallState();notify('Loop Alpha is installed')});
+    async function registerLoopServiceWorker(){
+      if(!('serviceWorker' in navigator))return null;
+      const registration=await navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'});
+      await navigator.serviceWorker.ready;
+      syncInstallState();
+      return registration;
+    }
     window.addEventListener('DOMContentLoaded',()=>{syncInstallState();syncNotificationState();maybeOfferNotifications()});
-    if('serviceWorker' in navigator){window.addEventListener('load',async()=>{try{await navigator.serviceWorker.register('/sw.js',{scope:'/'});await navigator.serviceWorker.ready;syncInstallState()}catch(error){console.error('Loop service worker registration failed',error)}})}
+    if('serviceWorker' in navigator){registerLoopServiceWorker().catch(error=>console.error('Loop service worker registration failed',error))}
     const places={harbor:{name:'Harbor Kitchen',category:'Seafood · Fort Lauderdale',address:'Waterfront dining inside your South Florida Loop',score:'9.1',confidence:'High confidence · 126 experiences',returnRate:'94%',matchRate:'91%',experience:'Perfect for a relaxed dinner. The patio gets quieter after 7:30, and the staff handled our larger group beautifully.',author:'Maria Flores · Rep 91'},coastal:{name:'Coastal Air & Electric',category:'Home Services · Plantation',address:'Licensed home repair service · 3.4 miles away',score:'8.8',confidence:'High confidence · 84 experiences',returnRate:'92%',matchRate:'89%',experience:'They explained the repair before starting, arrived inside the promised window, and the final price matched the estimate.',author:'David Kim · Rep 87'}};
     let currentPlace='harbor',toastTimer;
     function openMenu(){drawer.classList.add('open');scrim.classList.add('open')}function closeMenu(){drawer.classList.remove('open');scrim.classList.remove('open')}function toggleMenuGroup(id,button){const group=document.getElementById(id),open=group.classList.toggle('open');button.querySelector('.plus').textContent=open?'−':'+'}function setActiveNav(id){document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.toggle('on',button.id===id))}function hidePrimaryViews(){home.style.display='none';profile.classList.remove('active');activityPage.classList.remove('active');messengerPage.classList.remove('active');placePage.classList.remove('active');savedPage.classList.remove('active');settingsPage.classList.remove('active');trustPage.classList.remove('active');aboutPage.classList.remove('active');privacyPage.classList.remove('active');termsPage.classList.remove('active');howLoopWorksPage.classList.remove('active');communityGuidelinesPage.classList.remove('active');contactSupportPage.classList.remove('active')}function returnToMenu(){hidePrimaryViews();home.style.display='block';setActiveNav('navHome');scrollTo(0,0);requestAnimationFrame(openMenu)}function showHome(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navHome');scrollTo(0,0)}function showExplore(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navExplore');scrollTo(0,0);setTimeout(()=>q.focus(),0)}function showActivity(){closeMenu();hidePrimaryViews();activityPage.classList.add('active');setActiveNav('navActivity');scrollTo(0,0)}function showMessenger(){closeMenu();hidePrimaryViews();messengerPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showProfile(){closeMenu();hidePrimaryViews();profile.classList.add('active');setActiveNav('navYou');scrollTo(0,0)}function showSettings(){closeMenu();hidePrimaryViews();settingsPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showTrustSafety(){closeMenu();hidePrimaryViews();trustPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showAbout(){closeMenu();hidePrimaryViews();aboutPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showPrivacy(){closeMenu();hidePrimaryViews();privacyPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showTerms(){closeMenu();hidePrimaryViews();termsPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showHowLoopWorks(){closeMenu();hidePrimaryViews();howLoopWorksPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showCommunityGuidelines(){closeMenu();hidePrimaryViews();communityGuidelinesPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showContactSupport(){closeMenu();hidePrimaryViews();contactSupportPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function quick(v){q.value=v;findPlaces()}function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
