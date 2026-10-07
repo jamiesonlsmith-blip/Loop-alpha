@@ -404,11 +404,11 @@ function directPhotoFor(item = {}) {
 }
 
 async function wikidataPhotos(items = []) {
-  const ids = unique(items.map(item => {
+  const ids = [...new Set(items.map(item => {
     const extras = item.extratags && typeof item.extratags === 'object' ? item.extratags : {};
     const id = cleanText(extras.wikidata).toUpperCase();
     return /^Q\d+$/.test(id) ? id : '';
-  })).slice(0, 50);
+  }).filter(Boolean))].slice(0, 50);
 
   if (!ids.length) return new Map();
 
@@ -486,7 +486,7 @@ async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
 }
 
 function resultKey(item = {}) {
-  return String(item.place_id || item.osm_id || item.display_name || Math.random());
+  return String(item.place_id || item.osm_id || item.display_name || [item.lat,item.lon,item.type].join('|'));
 }
 
 function enrichItem(item, query, category, lat, lon, matchType, matchNote = '') {
