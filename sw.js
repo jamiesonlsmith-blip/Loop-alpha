@@ -1,4 +1,4 @@
-const CACHE_NAME = 'loop-alpha-v12';
+const CACHE_NAME = 'loop-alpha-v13';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -29,10 +29,6 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
-  if (url.pathname === '/manifest.webmanifest') {
-    event.respondWith(fetch(request, { cache: 'no-store' }));
-    return;
-  }
 
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -55,33 +51,5 @@ self.addEventListener('fetch', event => {
       }
       return response;
     }))
-  );
-});
-
-self.addEventListener('push', event => {
-  let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data ? event.data.text() : '' }; }
-  const title = data.title || 'Loop';
-  const options = {
-    body: data.body || 'You have new activity in Loop.',
-    icon: '/icons/icon-192.png?v=10',
-    badge: '/icons/icon-192.png?v=10',
-    tag: data.tag || 'loop-update',
-    data: { url: data.url || '/?view=activity' }
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  const target = event.notification.data && event.notification.data.url ? event.notification.data.url : '/?view=activity';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
-      for (const client of windows) {
-        if ('navigate' in client) client.navigate(target);
-        if ('focus' in client) return client.focus();
-      }
-      return clients.openWindow ? clients.openWindow(target) : undefined;
-    })
   );
 });

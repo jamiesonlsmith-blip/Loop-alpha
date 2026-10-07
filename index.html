@@ -4,9 +4,9 @@
   <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#116b3a">
-<link rel="manifest" href="/manifest.webmanifest?v=10">
-<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=10">
-<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png?v=10">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
 <meta name="application-name" content="Loop">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -783,7 +783,7 @@
 <h2>Install Loop Alpha</h2>
 <p id="installHelpIntro" class="panel-note">Add Loop to your phone so it opens from its own icon in standalone app mode.</p>
 <div id="installHelpSteps" class="policy-note"></div>
-<div class="dialog-actions"><button class="secondary" onclick="document.getElementById('installHelp').close()">Close</button><button id="installHelpPrimary" class="primary" onclick="document.getElementById('installHelp').close();openLoopInChrome()">Open in Chrome</button></div>
+<div class="dialog-actions"><button class="primary" onclick="document.getElementById('installHelp').close()">Got it</button></div>
 </div>
 </dialog>
 <dialog id="feedbackDialog">
@@ -839,46 +839,24 @@
       if(loopIsStandalone()){title.textContent='Loop is installed';copy.textContent='Opening in standalone app mode';icon.textContent='✓';chevron.textContent='';return}
       title.textContent='Add Loop to this phone';icon.textContent='↓';chevron.textContent='›';
       if(/iPhone|iPad|iPod/i.test(navigator.userAgent))copy.textContent='Add Loop to your Home Screen from Safari';
-      else if(deferredInstallPrompt){title.textContent='Install Loop app';copy.textContent='Ready to install as a standalone app';}
-      else if(/Android/i.test(navigator.userAgent)){title.textContent='Open in Chrome to install Loop';copy.textContent='Full Chrome is required for the standalone app installer';}
-      else copy.textContent='Preparing the standalone app installer — keep Loop open for a moment, then tap again';
-    }
-    function openLoopInChrome(){
-      const target='https://loop-alpha-nu.vercel.app/?install=1';
-      if(/Android/i.test(navigator.userAgent)){
-        const fallback=encodeURIComponent(target);
-        window.location.href='intent://loop-alpha-nu.vercel.app/?install=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+fallback+';end';
-        return;
-      }
-      window.open(target,'_blank','noopener');
-    }
-    async function promptStandaloneInstall(){
-      if(!deferredInstallPrompt)return false;
-      const promptEvent=deferredInstallPrompt;
-      deferredInstallPrompt=null;
-      promptEvent.prompt();
-      const choice=await promptEvent.userChoice;
-      syncInstallState();
-      if(choice.outcome==='accepted'){notify('Loop is installing as an app');return true}
-      return false;
+      else if(deferredInstallPrompt)copy.textContent='Install Loop Alpha with its own home-screen icon';
+      else copy.textContent='Install from your browser’s app or home-screen menu';
     }
     async function requestInstall(){
-      if(loopIsStandalone()){notify('Loop is already installed as an app');return}
-      if(await promptStandaloneInstall())return;
-
-      if('serviceWorker' in navigator){
-        try{
-          await registerLoopServiceWorker();
-          await new Promise(resolve=>setTimeout(resolve,1200));
-          if(await promptStandaloneInstall())return;
-        }catch(error){console.error('Loop install preparation failed',error)}
+      if(loopIsStandalone()){notify('Loop is already installed on this phone');return}
+      if(deferredInstallPrompt){
+        deferredInstallPrompt.prompt();
+        const choice=await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt=null;
+        syncInstallState();
+        if(choice.outcome==='accepted')notify('Loop is being added to your home screen');
+        return;
       }
-
       const box=document.getElementById('installHelpSteps');
       if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){
-        box.innerHTML='<strong>On iPhone or iPad:</strong><br>1. Open Loop in Safari.<br>2. Tap the Share button.<br>3. Choose <b>Add to Home Screen</b>.<br>4. Tap <b>Add</b>.';const primary=document.getElementById('installHelpPrimary');if(primary){primary.textContent='Got it';primary.onclick=()=>document.getElementById('installHelp').close()}
+        box.innerHTML='<strong>On iPhone or iPad:</strong><br>1. Open Loop in Safari.<br>2. Tap the Share button.<br>3. Choose <b>Add to Home Screen</b>.<br>4. Tap <b>Add</b>.';
       }else{
-        box.innerHTML='<strong>This screen cannot install the full Loop app.</strong><br><br>You are likely viewing Loop inside an in-app browser or Chrome custom tab. That view can only create a Home-screen shortcut.<br><br>Tap <b>Open in Chrome</b> below. Once Loop opens in the full Chrome app, return to <b>Settings &amp; privacy → Install Loop app</b> and Chrome can show the real standalone app installer.';
+        box.innerHTML='<strong>On Android:</strong><br>Open your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>. If the install option is not visible yet, refresh Loop once and try again.';
       }
       document.getElementById('installHelp').showModal();
     }
@@ -915,15 +893,8 @@
     }
     window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;syncInstallState()});
     window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;syncInstallState();notify('Loop Alpha is installed')});
-    async function registerLoopServiceWorker(){
-      if(!('serviceWorker' in navigator))return null;
-      const registration=await navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'});
-      await navigator.serviceWorker.ready;
-      syncInstallState();
-      return registration;
-    }
     window.addEventListener('DOMContentLoaded',()=>{syncInstallState();syncNotificationState();maybeOfferNotifications()});
-    if('serviceWorker' in navigator){registerLoopServiceWorker().catch(error=>console.error('Loop service worker registration failed',error))}
+    if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}
     const places={harbor:{name:'Harbor Kitchen',category:'Seafood · Fort Lauderdale',address:'Waterfront dining inside your South Florida Loop',score:'9.1',confidence:'High confidence · 126 experiences',returnRate:'94%',matchRate:'91%',experience:'Perfect for a relaxed dinner. The patio gets quieter after 7:30, and the staff handled our larger group beautifully.',author:'Maria Flores · Rep 91'},coastal:{name:'Coastal Air & Electric',category:'Home Services · Plantation',address:'Licensed home repair service · 3.4 miles away',score:'8.8',confidence:'High confidence · 84 experiences',returnRate:'92%',matchRate:'89%',experience:'They explained the repair before starting, arrived inside the promised window, and the final price matched the estimate.',author:'David Kim · Rep 87'}};
     let currentPlace='harbor',toastTimer;
     function openMenu(){drawer.classList.add('open');scrim.classList.add('open')}function closeMenu(){drawer.classList.remove('open');scrim.classList.remove('open')}function toggleMenuGroup(id,button){const group=document.getElementById(id),open=group.classList.toggle('open');button.querySelector('.plus').textContent=open?'−':'+'}function setActiveNav(id){document.querySelectorAll('.bottom-nav button').forEach(button=>button.classList.toggle('on',button.id===id))}function hidePrimaryViews(){home.style.display='none';profile.classList.remove('active');activityPage.classList.remove('active');messengerPage.classList.remove('active');placePage.classList.remove('active');savedPage.classList.remove('active');settingsPage.classList.remove('active');trustPage.classList.remove('active');aboutPage.classList.remove('active');privacyPage.classList.remove('active');termsPage.classList.remove('active');howLoopWorksPage.classList.remove('active');communityGuidelinesPage.classList.remove('active');contactSupportPage.classList.remove('active')}function returnToMenu(){hidePrimaryViews();home.style.display='block';setActiveNav('navHome');scrollTo(0,0);requestAnimationFrame(openMenu)}function showHome(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navHome');scrollTo(0,0)}function showExplore(){closeMenu();hidePrimaryViews();home.style.display='block';setActiveNav('navExplore');scrollTo(0,0);setTimeout(()=>q.focus(),0)}function showActivity(){closeMenu();hidePrimaryViews();activityPage.classList.add('active');setActiveNav('navActivity');scrollTo(0,0)}function showMessenger(){closeMenu();hidePrimaryViews();messengerPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showProfile(){closeMenu();hidePrimaryViews();profile.classList.add('active');setActiveNav('navYou');scrollTo(0,0)}function showSettings(){closeMenu();hidePrimaryViews();settingsPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showTrustSafety(){closeMenu();hidePrimaryViews();trustPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showAbout(){closeMenu();hidePrimaryViews();aboutPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showPrivacy(){closeMenu();hidePrimaryViews();privacyPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showTerms(){closeMenu();hidePrimaryViews();termsPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showHowLoopWorks(){closeMenu();hidePrimaryViews();howLoopWorksPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showCommunityGuidelines(){closeMenu();hidePrimaryViews();communityGuidelinesPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function showContactSupport(){closeMenu();hidePrimaryViews();contactSupportPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}function quick(v){q.value=v;findPlaces()}function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -937,7 +908,7 @@
     function react(button,id,type){const key='loopReaction-'+id,previous=localStorage.getItem(key);button.closest('.feedback-row').querySelectorAll('button').forEach(x=>x.classList.remove('selected'));if(previous===type){localStorage.removeItem(key);notify('Feedback removed');return}localStorage.setItem(key,type);button.classList.add('selected');notify(type==='agree'?'Your agreement strengthens this experience':'Thanks—your Loop will learn from this')}
     function openExperience(id){closeMenu();if(id&&places[id])currentPlace=id;const select=document.getElementById('experiencePlace');if(![...select.options].some(x=>x.value===currentPlace)&&places[currentPlace])select.add(new Option(places[currentPlace].name,currentPlace));select.value=places[currentPlace]?currentPlace:'harbor';document.getElementById('experienceText').value='';chooseRating(null);document.getElementById('experienceDialog').showModal()}function chooseRating(rating,button){document.getElementById('experienceRating').value=rating||'';document.querySelectorAll('#ratingChoice button').forEach(x=>x.classList.toggle('on',x===button))}function submitExperience(event){event.preventDefault();const place=document.getElementById('experiencePlace').value,rating=document.getElementById('experienceRating').value,text=document.getElementById('experienceText').value.trim();if(!rating){notify('Choose a rating first');return}const experiences=readList('loopExperiences');experiences.unshift({place,rating,text,createdAt:Date.now()});writeList('loopExperiences',experiences);document.getElementById('experienceDialog').close();showPlace(place);notify('Experience shared with your Loop')}
     function openFeedback(){document.getElementById('feedbackText').value='';document.getElementById('feedbackEmail').value='';document.getElementById('feedbackWebsite').value='';document.getElementById('feedbackDialog').showModal()}async function submitFeedback(event){event.preventDefault();const button=document.getElementById('feedbackSubmit'),type=document.getElementById('feedbackType').value,message=document.getElementById('feedbackText').value.trim(),contactEmail=document.getElementById('feedbackEmail').value.trim(),website=document.getElementById('feedbackWebsite').value;const payload={type,message,contactEmail,website,pageUrl:location.href,appVersion:'Loop Alpha'};button.disabled=true;button.textContent='Sending…';try{const response=await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Feedback could not be sent');document.getElementById('feedbackDialog').close();if(data.notified)notify('Feedback sent to Loop — thank you');else notify('Feedback saved — email notification is delayed')}catch(error){const pending=readList('loopPendingFeedback');pending.unshift({...payload,createdAt:Date.now()});writeList('loopPendingFeedback',pending.slice(0,20));document.getElementById('feedbackDialog').close();notify('Could not send yet — a backup was saved on this device')}finally{button.disabled=false;button.textContent='Send feedback'}}    function restoreState(){syncSaveButtons();document.querySelectorAll('[data-place]').forEach(card=>{const type=localStorage.getItem('loopReaction-'+card.dataset.place);if(type){const button=card.querySelector(type==='agree'?'.feedback-row button:first-child':'.feedback-row .negative');if(button)button.classList.add('selected')}})}
-    function getProfile(){try{return JSON.parse(localStorage.getItem('loopProfile'))||{}}catch{return{}}}function applyProfile(data){const name=data.name||'Jameson Leon Smith',role=data.role||'Sales Manager',location=data.location||'South Florida';document.getElementById('profileName').textContent=name;document.getElementById('profileDetails').textContent=[role,location].filter(Boolean).join(' · ');document.getElementById('avatar').textContent=name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'JS'}function openEditor(){const data=getProfile();document.getElementById('editName').value=data.name||'Jameson Leon Smith';document.getElementById('editRole').value=data.role||'Sales Manager';document.getElementById('editLocation').value=data.location||'South Florida';document.getElementById('profileEditor').showModal()}function saveProfile(event){event.preventDefault();const data={name:document.getElementById('editName').value.trim(),role:document.getElementById('editRole').value.trim(),location:document.getElementById('editLocation').value.trim()};localStorage.setItem('loopProfile',JSON.stringify(data));applyProfile(data);document.getElementById('profileEditor').close()}applyProfile(getProfile());restoreState();syncInstallState();const installSource=new URLSearchParams(location.search).get('install');const initialView=new URLSearchParams(location.search).get('view');if(installSource==='1')showSettings();else if(initialView==='profile')showProfile();else if(initialView==='explore')showExplore();else if(initialView==='messages')showMessenger();else if(initialView==='activity')showActivity();else if(initialView==='how')showHowLoopWorks();else if(initialView==='community')showCommunityGuidelines();else if(initialView==='support')showContactSupport();
+    function getProfile(){try{return JSON.parse(localStorage.getItem('loopProfile'))||{}}catch{return{}}}function applyProfile(data){const name=data.name||'Jameson Leon Smith',role=data.role||'Sales Manager',location=data.location||'South Florida';document.getElementById('profileName').textContent=name;document.getElementById('profileDetails').textContent=[role,location].filter(Boolean).join(' · ');document.getElementById('avatar').textContent=name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'JS'}function openEditor(){const data=getProfile();document.getElementById('editName').value=data.name||'Jameson Leon Smith';document.getElementById('editRole').value=data.role||'Sales Manager';document.getElementById('editLocation').value=data.location||'South Florida';document.getElementById('profileEditor').showModal()}function saveProfile(event){event.preventDefault();const data={name:document.getElementById('editName').value.trim(),role:document.getElementById('editRole').value.trim(),location:document.getElementById('editLocation').value.trim()};localStorage.setItem('loopProfile',JSON.stringify(data));applyProfile(data);document.getElementById('profileEditor').close()}applyProfile(getProfile());restoreState();syncInstallState();const initialView=new URLSearchParams(location.search).get('view');if(initialView==='profile')showProfile();else if(initialView==='explore')showExplore();else if(initialView==='messages')showMessenger();else if(initialView==='activity')showActivity();else if(initialView==='how')showHowLoopWorks();else if(initialView==='community')showCommunityGuidelines();else if(initialView==='support')showContactSupport();
   </script>
 </body>
 </html>
