@@ -557,15 +557,19 @@ export default async function handler(req, res) {
         if (distanceMiles > scope.maxMiles) continue;
 
         const strictGroups = hardIntentGroups(query);
-        const providerDirect = intent.key !== 'general' && candidate !== query && passesRelatedIntent(item, intent);
-        if (strictGroups.length && !passesIntent(item, query) && !providerDirect) continue;
+        const literalMatch = passesIntent(item, query);
+        const providerRelated = intent.key !== 'general' && passesRelatedIntent(item, intent);
+        if (strictGroups.length && !literalMatch && !providerRelated) continue;
 
         const key = resultKey(item);
         if (seen.has(key)) continue;
         seen.add(key);
 
-        merged.push(enrichItem(item, query, category, lat, lon, 'direct'));
-        directCount++;
+        const matchType = strictGroups.length && !literalMatch ? 'related' : 'direct';
+        const note = matchType === 'related' ? intent.relatedNote : '';
+        merged.push(enrichItem(item, query, category, lat, lon, matchType, note));
+        if (matchType === 'direct') directCount++;
+        else relatedCount++;
       }
     }
 
