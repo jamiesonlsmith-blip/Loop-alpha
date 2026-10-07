@@ -1,7 +1,7 @@
 (() => {
   const PROFILE_KEY = 'loopUserProfileV1';
   const LOOP_CACHE_KEY = 'loopArcadeCurrentLoopV1';
-  const LOOP_CACHE_MS = 6 * 60 * 60 * 1000;
+  const LOOP_CACHE_MS = 15 * 60 * 1000;
   let authClient = null;
   let session = null;
   let currentLoop = null;
