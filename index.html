@@ -319,8 +319,8 @@
 </div>
 </section>
 <section class="panel">
-<h2>Your interests</h2>
-<p class="panel-note">Loop uses the interests you choose — plus what you explore over time — to make recommendations feel more relevant to you.</p>
+<h2>Your preferences</h2>
+<p class="panel-note">Loop uses the preferences you choose — plus what you explore over time — to make recommendations feel more relevant to you.</p>
 <div class="profile-benefit-list">
 <div><b id="profileTastesDisplay">Not set yet</b><small>Movies, music, food, travel, styles, eras, moods — whatever matters to you.</small></div>
 </div>
@@ -701,9 +701,9 @@
 <div class="field"><label for="setupLocation">Home area</label><input id="setupLocation" autocomplete="address-level2" placeholder="City, neighborhood, or region" required></div>
 <div class="field"><label for="setupRole">Work title <span class="meta">(optional)</span></label><input id="setupRole" autocomplete="organization-title"></div>
 <div class="field">
-<label>What should Loop help you discover? <span class="meta">(optional)</span></label>
+<label>Your preferences <span class="meta">(optional)</span></label>
 <input id="setupTastes" type="hidden">
-<div id="setupInterestPicker" class="interest-picker" aria-label="Choose your starting interests">
+<div id="setupInterestPicker" class="interest-picker" aria-label="Choose your starting preferences">
 <button type="button" class="interest-chip" data-interest="Restaurants" aria-pressed="false" onclick="toggleSetupInterest(this)">Restaurants</button>
 <button type="button" class="interest-chip" data-interest="Music" aria-pressed="false" onclick="toggleSetupInterest(this)">Music</button>
 <button type="button" class="interest-chip" data-interest="Travel" aria-pressed="false" onclick="toggleSetupInterest(this)">Travel</button>
@@ -714,7 +714,7 @@
 <button type="button" class="interest-chip" data-interest="Health &amp; Wellness" aria-pressed="false" onclick="toggleSetupInterest(this)">Health &amp; Wellness</button>
 <button type="button" class="interest-chip" data-interest="Parks &amp; Outdoors" aria-pressed="false" onclick="toggleSetupInterest(this)">Parks &amp; Outdoors</button>
 </div>
-<small class="interest-help">Pick any that fit. This is only a starting point — Loop can learn from what you search and you can add more detail later.</small>
+<small class="interest-help">What should Loop help you discover first? Pick any that fit. This is only a starting point — Loop will refine your preferences as you use the app.</small>
 </div>
 <div id="profileSetupMessage" class="auth-message" role="status"></div>
 <div class="dialog-actions"><button type="button" class="secondary" onclick="backToOnboarding()">Back</button><button id="profileSetupSubmit" type="button" class="primary" onclick="createAlphaProfile()">Create profile</button></div>
@@ -826,9 +826,9 @@
 <input id="editLocation">
 </div>
 <div class="field">
-<label for="editTastes">Your interests</label>
+<label for="editTastes">Your preferences</label>
 <input id="editTastes" placeholder="90s sci-fi, crime thrillers, R&amp;B, neo-soul, travel…">
-<small class="meta">Add more detail anytime. Loop also learns from the categories and searches you use.</small>
+<small class="meta">Add more detail anytime. Loop also refines your preferences from the categories and searches you use.</small>
 </div>
 <div class="dialog-actions">
 <button class="secondary" value="cancel">Cancel</button>
@@ -1066,7 +1066,7 @@
         member.classList.remove('guest-hidden');guest.classList.remove('active');edit.textContent='Edit profile';if(drawerSignIn)drawerSignIn.hidden=true;if(drawerSignOut)drawerSignOut.hidden=false;
         if(greetingKicker)greetingKicker.textContent=greetingForNow()+',';
         if(greetingName)greetingName.textContent=firstNameFor(data.name);
-        if(greetingCopy)greetingCopy.textContent='What are you looking for today? Your Loop will use your profile, interests and context to make discovery more relevant.';
+        if(greetingCopy)greetingCopy.textContent='What are you looking for today? Your Loop will use your profile, preferences and context to make discovery more relevant.';
         if(guestNudge)guestNudge.hidden=true;if(memberBadge)memberBadge.hidden=false;if(communityTeaser)communityTeaser.hidden=false;
         if(memberContext)memberContext.textContent='Personalized'+(data.location?' · '+data.location:'');
         if(communityAvatar)communityAvatar.textContent=initialsFor(data.name);
@@ -1075,7 +1075,7 @@
         document.getElementById('avatar').textContent=initialsFor(data.name);
         document.getElementById('profileHomeLoop').textContent=data.location||'Not set';
         document.getElementById('profileEmailDisplay').textContent=data.email||'Not set';
-        const tasteDisplay=document.getElementById('profileTastesDisplay');if(tasteDisplay)tasteDisplay.textContent=data.tastes||'Add a few interests to personalize Loop';
+        const tasteDisplay=document.getElementById('profileTastesDisplay');if(tasteDisplay)tasteDisplay.textContent=data.tastes||'Add a few preferences to personalize Loop';
         if(homeAvatar)homeAvatar.textContent=initialsFor(data.name);
         if(loopLabel)loopLabel.textContent='● Current Loop · '+(data.location||'Nearby');
         if(drawerAvatar)drawerAvatar.textContent=initialsFor(data.name);
@@ -1157,7 +1157,7 @@
       const data=getProfile(),resume=document.getElementById('resumeProfileButton'),signIn=document.getElementById('authSignInButton'),title=document.getElementById('onboardingTitle'),copy=document.getElementById('onboardingCopy'),createTitle=document.getElementById('onboardingCreateTitle'),createCopy=document.getElementById('onboardingCreateCopy'),note=document.getElementById('onboardingAccountNote');
       if(authBackendReady){
         const needsMigration=localStorage.getItem(AUTH_MIGRATION_KEY)==='1'&&!!data.name;
-        signIn.hidden=false;resume.hidden=true;title.textContent=needsMigration?'Secure your Loop profile':'Welcome to Loop';copy.innerHTML=needsMigration?'<b>Your Alpha profile is ready to become a real account.</b> Create secure credentials to keep your identity and profile available across devices.':'<b>Guests can discover. Members are part of the Loop.</b> Sign in to your existing account, create a new account, or browse as a guest.';createTitle.textContent=needsMigration?'Secure '+firstNameFor(data.name)+' as a real account':'Want to be in the Loop? Create an account';createCopy.textContent=needsMigration?'Your saved name, home area and tastes will be prefilled. Add a password and verify your email.':'Use your email and password to keep your Loop identity available across devices.';if(note)note.textContent='Secure account mode is connected. Email verification helps protect each Loop identity.';return;
+        signIn.hidden=false;resume.hidden=true;title.textContent=needsMigration?'Secure your Loop profile':'Welcome to Loop';copy.innerHTML=needsMigration?'<b>Your Alpha profile is ready to become a real account.</b> Create secure credentials to keep your identity and profile available across devices.':'<b>Guests can discover. Members are part of the Loop.</b> Sign in to your existing account, create a new account, or browse as a guest.';createTitle.textContent=needsMigration?'Secure '+firstNameFor(data.name)+' as a real account':'Want to be in the Loop? Create an account';createCopy.textContent=needsMigration?'Your saved name, home area and preferences will be prefilled. Add a password and verify your email.':'Use your email and password to keep your Loop identity available across devices.';if(note)note.textContent='Secure account mode is connected. Email verification helps protect each Loop identity.';return;
       }
       signIn.hidden=true;
       if(data.name){resume.hidden=false;document.getElementById('resumeProfileTitle').textContent='Continue as '+firstNameFor(data.name);document.getElementById('resumeProfileCopy').textContent=(data.email?data.email+' · ':'')+'Profile saved on this device';title.textContent='Welcome back';copy.innerHTML='<b>Guests can discover. Members are part of the Loop.</b> Continue your saved device profile, use a different profile for testing, or browse as a guest.';createTitle.textContent='Use a different profile';createCopy.textContent='For Alpha testing, this replaces the profile currently saved on this device.'}else{resume.hidden=true;title.textContent='How do you want to explore?';copy.innerHTML='<b>Guests can discover. Members are part of the Loop.</b> Browse without a profile, or create one to unlock personalized recommendations, Community, saved discoveries, notifications and reputation.';createTitle.textContent='Want to be in the Loop? Create an account';createCopy.textContent='Get a personalized home, personalized recommendations, Community, saved discoveries, notifications and reputation.'}
