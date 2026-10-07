@@ -1,8 +1,13 @@
-const CACHE_NAME = 'loop-alpha-v15';
+const CACHE_NAME = 'loop-alpha-v16';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
+  '/games/',
+  '/games/index.html',
+  '/games/snake.html',
+  '/games/space-impact.html',
+  '/games/arcade-common.js',
   '/icons/icon-180.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
@@ -34,11 +39,16 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('/index.html', copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(url.pathname, copy));
+          }
           return response;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(async () => {
+          return (await caches.match(url.pathname)) ||
+            (url.pathname.startsWith('/games/') ? await caches.match('/games/index.html') : await caches.match('/index.html'));
+        })
     );
     return;
   }
