@@ -319,8 +319,8 @@
 </div>
 </section>
 <section class="panel">
-<h2>Your taste</h2>
-<p class="panel-note">Loop can use the interests you choose to make recommendations feel relevant to you instead of simply popular overall.</p>
+<h2>Your interests</h2>
+<p class="panel-note">Loop uses the interests you choose — plus what you explore over time — to make recommendations feel more relevant to you.</p>
 <div class="profile-benefit-list">
 <div><b id="profileTastesDisplay">Not set yet</b><small>Movies, music, food, travel, styles, eras, moods — whatever matters to you.</small></div>
 </div>
@@ -999,6 +999,7 @@
     function quick(v){const map={restaurant:'restaurants','urgent care':'medical',park:'parks','home services':'home-services',mechanic:'auto',shopping:'retail',travel:'travel'};openCategory(map[v]||'all')}
     function quickContent(kind){openCategory(kind)}
     function detectContentKind(term){const t=String(term||'').toLowerCase();if(/\b(movie|movies|film|films|show|shows|tv|series|sitcom|thriller|horror|sci-fi|science fiction|gangster|courtroom|watch)\b/.test(t))return'movies';if(/\b(music|song|songs|artist|artists|band|bands|album|albums|r&b|rnb|hip-hop|hip hop|rap|rock|techno|electronic|listen)\b/.test(t))return'music';return''}
+    function inferInterestKind(term){const t=String(term||'').toLowerCase(),contentKind=detectContentKind(t);if(contentKind)return contentKind;if(/\b(restaurant|restaurants|food|brunch|dinner|lunch|breakfast|pizza|sushi|pasta|drinks?)\b/.test(t))return'restaurants';if(/\b(doctor|medical|clinic|dentist|urgent care|pediatric|therapy|health)\b/.test(t))return'medical';if(/\b(park|parks|trail|playground|outdoor|hiking|jogging)\b/.test(t))return'parks';if(/\b(plumber|electrician|handyman|cleaning|home service|ac repair|hvac)\b/.test(t))return'home-services';if(/\b(mechanic|oil change|tire|tires|brake|body shop|car repair)\b/.test(t))return'auto';if(/\b(store|stores|shopping|clothes|clothing|shoes|sneakers|jewelry|furniture|retail)\b/.test(t))return'retail';if(/\b(travel|trip|airline|flight|rental car|hotel|airport|vacation|destination)\b/.test(t))return'travel';return''}
     function scoreContentRecommendation(item,term,tastes){const query=String(term||'').toLowerCase(),profile=String(tastes||'').toLowerCase();return item.keywords.reduce((score,key)=>score+(query.includes(key)?4:0)+(profile.includes(key)?1:0),0)}
     function renderContentRecommendations(kind,term){recordInterestSignal(kind);const profile=getProfile(),tastes=[profile.tastes||'',learnedInterestText()].filter(Boolean).join(', '),label=kind==='movies'?'Movies & TV':'Music',items=[...(contentRecommendations[kind]||[])].sort((a,b)=>scoreContentRecommendation(b,term,tastes)-scoreContentRecommendation(a,term,tastes)).slice(0,5);results.innerHTML=items.map((item,index)=>`<article class="content-rec"><span class="content-kind">${kind==='movies'?'▶ Movies & TV':'♫ Music'} · ${index===0?'Top match':'For your Loop'}</span><h3>${esc(item.title)}</h3><div class="content-meta">${esc(item.meta)}</div><p class="why-fit"><b>Why it fits:</b> ${esc(item.reason)}</p><span class="peer-signal">◎ Shaped by your search${tastes?' + your taste profile':''} + peer-interest signals</span><div class="content-action">${kind==='movies'?'Streaming destination links':'Listening destination links'} are the next connection layer.</div></article>`).join('');statusEl.textContent=label+' recommendations for “'+term+'” — personalized discovery preview. No location permission needed.';results.scrollIntoView({behavior:'smooth',block:'start'})}
     function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -1006,7 +1007,7 @@
       if(currentCategory==='movies'||currentCategory==='music'){renderContentRecommendations(currentCategory,term);return}
       if(currentCategory==='travel'){
         if(/\b(rental|car rental|airport|parking|luggage)\b/i.test(term)){statusEl.textContent='Finding nearby travel services…';if(!navigator.geolocation){statusEl.textContent='Location is not available in this browser.';return}navigator.geolocation.getCurrentPosition(p=>searchAt(term,p.coords.latitude,p.coords.longitude).catch(err=>{console.error('Loop travel search',err);statusEl.textContent='Live place search is temporarily unavailable. Please try again.'}),()=>{renderTravelPreview(term)},{enableHighAccuracy:false,timeout:12000,maximumAge:300000});return}renderTravelPreview(term);return}
-      if(currentCategory==='all'){const contentKind=detectContentKind(term);if(contentKind){renderContentRecommendations(contentKind,term);return}}
+      if(currentCategory==='all'){const inferredKind=inferInterestKind(term);if(inferredKind)recordInterestSignal(inferredKind);const contentKind=detectContentKind(term);if(contentKind){renderContentRecommendations(contentKind,term);return}}
       const placeTerm=contextualizePlaceTerm(term);statusEl.textContent='Finding your location…';if(!navigator.geolocation){statusEl.textContent='Location is not available in this browser.';return}navigator.geolocation.getCurrentPosition(p=>searchAt(placeTerm,p.coords.latitude,p.coords.longitude).catch(err=>{console.error('Loop place search',err);statusEl.textContent='Live place search is temporarily unavailable. Please try again in a moment.'}),e=>{statusEl.textContent=e.code===1?'Location permission is off. Allow location for Loop in your browser or phone settings, then search again.':'Could not get your location. Check location services and try again.'},{enableHighAccuracy:false,timeout:12000,maximumAge:300000})}q.addEventListener('keydown',e=>{if(e.key==='Enter')findPlaces()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
     function readList(key){try{return JSON.parse(localStorage.getItem(key))||[]}catch{return[]}}function writeList(key,list){localStorage.setItem(key,JSON.stringify(list))}function notify(message){const toast=document.getElementById('toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2200)}
     function showPlace(id){currentPlace=id;const place=places[id];if(!place)return;hidePrimaryViews();placePage.classList.add('active');setActiveNav('navExplore');document.getElementById('placeTitle').textContent=place.name;document.getElementById('placeCategory').textContent=place.category;document.getElementById('placeAddress').textContent=place.address;document.getElementById('placeScore').textContent=place.score;document.getElementById('placeConfidence').textContent=place.confidence;document.getElementById('returnRate').textContent=place.returnRate;document.getElementById('matchRate').textContent=place.matchRate;renderExperiences(id);syncSaveButtons();scrollTo(0,0)}
@@ -1065,7 +1066,7 @@
         member.classList.remove('guest-hidden');guest.classList.remove('active');edit.textContent='Edit profile';if(drawerSignIn)drawerSignIn.hidden=true;if(drawerSignOut)drawerSignOut.hidden=false;
         if(greetingKicker)greetingKicker.textContent=greetingForNow()+',';
         if(greetingName)greetingName.textContent=firstNameFor(data.name);
-        if(greetingCopy)greetingCopy.textContent='What are you looking for today? Your Loop will use your profile, tastes and context to make discovery more relevant.';
+        if(greetingCopy)greetingCopy.textContent='What are you looking for today? Your Loop will use your profile, interests and context to make discovery more relevant.';
         if(guestNudge)guestNudge.hidden=true;if(memberBadge)memberBadge.hidden=false;if(communityTeaser)communityTeaser.hidden=false;
         if(memberContext)memberContext.textContent='Personalized'+(data.location?' · '+data.location:'');
         if(communityAvatar)communityAvatar.textContent=initialsFor(data.name);
@@ -1191,6 +1192,7 @@
     async function signOutToGuest(){const dialog=document.getElementById('signOutDialog');if(dialog.open)dialog.close();if(authBackendReady&&loopAuthClient){try{await loopAuthClient.auth.signOut({scope:'local'})}catch(error){console.warn('Loop sign out:',error)}}currentAuthUser=null;localStorage.setItem(ACCOUNT_MODE_KEY,'guest');localStorage.setItem(SIGNED_OUT_KEY,'1');if(authBackendReady)localStorage.removeItem(PROFILE_KEY);applyAccountState();showHome();notify('Signed out — browsing as a guest')}
     async function createAlphaProfile(event){
       if(event)event.preventDefault();
+      const form=document.querySelector('#profileSetupDialog form');if(form&&!form.reportValidity())return;
       const data={name:document.getElementById('setupName').value.trim(),email:document.getElementById('setupEmail').value.trim(),location:document.getElementById('setupLocation').value.trim(),role:document.getElementById('setupRole').value.trim(),tastes:document.getElementById('setupTastes').value.trim()};
       if(!data.name||!data.email||!data.location)return;
       if(!authBackendReady){
