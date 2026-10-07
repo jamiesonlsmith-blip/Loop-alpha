@@ -9,7 +9,12 @@
   "background_color": "#0d1511",
   "theme_color": "#116b3a",
   "orientation": "portrait-primary",
-  "categories": ["social", "lifestyle", "navigation"],
+  "categories": [
+    "social",
+    "lifestyle",
+    "navigation",
+    "games"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -40,6 +45,11 @@
       "name": "My profile",
       "short_name": "Profile",
       "url": "/?view=profile"
+    },
+    {
+      "name": "Loop Mini Games",
+      "short_name": "Mini Games",
+      "url": "/games/"
     }
   ]
 }

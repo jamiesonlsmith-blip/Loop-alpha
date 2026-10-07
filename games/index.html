@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10291c">
+<title>Loop Mini Games</title>
+<style>
+:root{--green:#116b3a;--green2:#159555;--ink:#17221b;--muted:#718078;--paper:#f5f6f1;--card:#fff;--line:#dfe7e1;--yellow:#ffd54f;--red:#e14a42}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at 50% 0,#254734 0,#132419 40%,#0a120d 100%);color:#fff}body{min-height:100svh;padding:18px 16px 42px}button,a{font:inherit}.topbar{max-width:1100px;margin:0 auto 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}.back{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#ecf6ef;font-weight:850;background:#ffffff10;border:1px solid #ffffff18;border-radius:999px;padding:10px 14px}.brand{display:flex;align-items:center;gap:9px;font-weight:950}.mini-logo{width:26px;height:20px;position:relative}.mini-logo:before,.mini-logo:after{content:"";position:absolute;top:2px;width:15px;height:15px;border:3px solid #8fe2ad;border-radius:50%}.mini-logo:before{left:0}.mini-logo:after{right:0}
+.shell{max-width:1100px;margin:auto}.hero{background:linear-gradient(135deg,#0c4b2c,#167847 60%,#1b8a52);border:1px solid #ffffff1c;border-radius:30px;padding:34px;box-shadow:0 26px 70px #0006;overflow:hidden;position:relative}.hero:after{content:"ARCADE";position:absolute;right:-18px;bottom:-24px;font-size:94px;font-weight:950;color:#ffffff09;letter-spacing:-5px}.eyebrow{display:inline-flex;align-items:center;gap:8px;background:#ffffff16;border:1px solid #ffffff2a;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.hero h1{font-size:clamp(38px,7vw,70px);line-height:.96;letter-spacing:-3px;margin:16px 0 12px}.hero p{max-width:650px;color:#dcefe2;font-size:16px;line-height:1.55;margin:0}.hero-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}.pill{border-radius:999px;padding:8px 11px;background:#ffffff12;border:1px solid #ffffff20;font-size:12px;font-weight:850;color:#fff}.hero-meta button.pill{cursor:pointer}.layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;margin-top:18px}.games{display:grid;grid-template-columns:1fr 1fr;gap:14px}.game-card{position:relative;overflow:hidden;min-height:310px;border-radius:26px;padding:24px;text-decoration:none;color:var(--ink);background:linear-gradient(145deg,#fff,#f3f6f2);border:1px solid var(--line);box-shadow:0 14px 38px #0003;display:flex;flex-direction:column}.game-card.space{background:linear-gradient(145deg,#edf5ea,#cfdcb5)}.game-kicker{font-size:11px;color:var(--green);font-weight:950;text-transform:uppercase;letter-spacing:.1em}.game-icon{width:68px;height:68px;border-radius:20px;background:#173124;color:#c5d79b;display:grid;place-items:center;font:950 30px/1 "Courier New",monospace;margin:18px 0}.game-card h2{font-size:29px;margin:0 0 8px;letter-spacing:-1px}.game-card p{color:#5c6861;line-height:1.5;margin:0}.game-foot{margin-top:auto;padding-top:20px;display:flex;align-items:end;justify-content:space-between;gap:12px}.best b,.best small{display:block}.best b{font-size:25px;color:var(--green)}.best small{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:900}.play{background:var(--green);color:#fff;border-radius:999px;padding:10px 15px;font-weight:900}
+.board{background:#fff;color:var(--ink);border-radius:26px;border:1px solid var(--line);box-shadow:0 14px 38px #0003;overflow:hidden}.board-head{padding:20px;border-bottom:1px solid var(--line)}.board-head h2{margin:0 0 4px;font-size:23px}.board-head p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:12px 12px 0}.tabs button,.game-tabs button{border:0;border-radius:12px;padding:10px;background:#eef3ef;color:#536057;font-weight:850}.tabs button.on,.game-tabs button.on{background:var(--green);color:#fff}.game-tabs{display:flex;gap:7px;padding:8px 12px 12px}.game-tabs button{flex:1}.rank-list{padding:0 12px 14px;min-height:300px}.rank{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:11px 6px;border-top:1px solid #edf1ee}.rank:first-child{border-top:0}.rank-num{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:#edf7f0;color:var(--green);font-weight:950;font-size:12px}.rank b,.rank small{display:block}.rank b{font-size:14px}.rank small{font-size:11px;color:var(--muted);margin-top:2px}.rank-score{font:950 17px/1 "Courier New",monospace}.empty{padding:38px 16px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}.account-note{margin:0 12px 14px;padding:11px 12px;border-radius:14px;background:#f5f7ed;color:#596259;font-size:12px;line-height:1.45}.account-note strong{color:var(--green)}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.board{order:2}}@media(max-width:620px){body{padding:10px 9px 28px}.hero{padding:27px 20px;border-radius:24px}.games{grid-template-columns:1fr}.game-card{min-height:260px}.layout{margin-top:13px}.topbar{padding:0 3px}.brand{font-size:14px}}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="back" href="/" aria-label="Back to Loop">← Back to Loop</a><div class="brand"><span class="mini-logo" aria-hidden="true"></span>Loop Arcade</div></div>
+<main class="shell">
+<section class="hero">
+<span class="eyebrow">Loop • Mini Games</span>
+<h1>Take a quick break.</h1>
+<p>Simple retro games built into Loop. Chase your own best, then see how your score stacks up in your current Loop—or across every Loop.</p>
+<div class="hero-meta"><button class="pill" id="loopPill" type="button" onclick="refreshLoop()">◎ Finding your Loop…</button><span class="pill" id="memberPill">Leaderboard status…</span></div>
+</section>
+<div class="layout">
+<section class="games" aria-label="Loop mini games">
+<a class="game-card" href="/games/snake.html">
+<span class="game-kicker">Loop Classic 01</span><span class="game-icon">S</span><h2>Loop Snake</h2><p>Collect Loop marks, grow the trail, and keep your thumbs steady as the pace climbs.</p>
+<div class="game-foot"><span class="best"><small>Device best</small><b id="snakeBest">0</b></span><span class="play">Play Snake →</span></div>
+</a>
+<a class="game-card space" href="/games/space-impact.html">
+<span class="game-kicker">Loop Classic 02</span><span class="game-icon">➤</span><h2>Loop Space Impact</h2><p>A compact side-scrolling space shooter: dodge incoming ships, fire back, and survive longer as each wave gets faster.</p>
+<div class="game-foot"><span class="best"><small>Device best</small><b id="spaceBest">0</b></span><span class="play">Play Space Impact →</span></div>
+</a>
+</section>
+<aside class="board" aria-label="Loop arcade leaderboard">
+<div class="board-head"><h2>High Scores</h2><p id="boardCopy">Top players in your current Loop.</p></div>
+<div class="tabs"><button id="loopTab" class="on" onclick="setScope('loop')">My Loop</button><button id="globalTab" onclick="setScope('global')">Global</button></div>
+<div class="game-tabs"><button id="snakeTab" class="on" onclick="setGame('snake')">Snake</button><button id="spaceTab" onclick="setGame('space-impact')">Space Impact</button></div>
+<div id="rankList" class="rank-list"><div class="empty">Loading scores…</div></div>
+<div id="accountNote" class="account-note">Checking leaderboard access…</div>
+</aside>
+</div>
+</main>
+<script src="/games/arcade-common.js"></script>
+<script>
+let activeGame='snake',activeScope='loop';
+const scoreFormat=n=>String(Number(n)||0).padStart(4,'0');
+function setScope(scope){activeScope=scope;document.getElementById('loopTab').classList.toggle('on',scope==='loop');document.getElementById('globalTab').classList.toggle('on',scope==='global');loadBoard()}
+function setGame(game){activeGame=game;document.getElementById('snakeTab').classList.toggle('on',game==='snake');document.getElementById('spaceTab').classList.toggle('on',game==='space-impact');loadBoard()}
+async function refreshLoop(){const button=document.getElementById('loopPill');button.textContent='◎ Refreshing Loop…';const loop=await LoopArcade.refreshLoop();button.textContent='◎ '+((loop&&loop.label)||'Current Loop');if(activeScope==='loop')loadBoard()}
+async function loadBoard(){
+  const state=LoopArcade.state(),list=document.getElementById('rankList');
+  list.innerHTML='<div class="empty">Loading scores…</div>';
+  document.getElementById('boardCopy').textContent=activeScope==='global'?'Top scores across every Loop.':'Top scores in '+((state.loop&&state.loop.label)||'your current Loop')+'.';
+  const rows=await LoopArcade.leaderboard(activeGame,activeScope);
+  if(!rows.length){list.innerHTML='<div class="empty">No leaderboard score here yet.<br>Be the first to put this Loop on the board.</div>';return}
+  list.innerHTML=rows.map(row=>'<div class="rank"><span class="rank-num">'+row.rank+'</span><span><b>'+escapeHtml(row.name)+'</b><small>'+escapeHtml(row.loopLabel||'Loop player')+'</small></span><strong class="rank-score">'+scoreFormat(row.score)+'</strong></div>').join('');
+}
+function escapeHtml(value){return String(value||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+(async()=>{
+  document.getElementById('snakeBest').textContent=scoreFormat(LoopArcade.localBest('snake'));
+  document.getElementById('spaceBest').textContent=scoreFormat(LoopArcade.localBest('space-impact'));
+  const state=await LoopArcade.init();
+  document.getElementById('loopPill').textContent='◎ '+((state.loop&&state.loop.label)||'Current Loop');
+  document.getElementById('memberPill').textContent=state.signedIn?'✓ Scores connected to your Loop profile':'Guest play • device best only';
+  document.getElementById('accountNote').innerHTML=state.signedIn?'<strong>Leaderboard on.</strong> Your best score in each Loop is saved to your profile.':'<strong>Guest mode:</strong> you can play everything and keep device bests. Sign in from Loop to post scores to the leaderboard.';
+  loadBoard();
+})();
+</script>
+</body>
+</html>
