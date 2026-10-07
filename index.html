@@ -56,10 +56,10 @@
 <button class="close" onclick="closeMenu()" aria-label="Close menu">×</button>
 </div>
 <div class="drawer-profile">
-<span class="drawer-avatar">JS</span>
+<span id="drawerAccountAvatar" class="drawer-avatar">G</span>
 <span>
-<b>Jameson Smith</b>
-<small>Reputation 82 · Founding Explorer</small>
+<b id="drawerAccountName">Guest</b>
+<small id="drawerAccountMeta">Browsing without a profile</small>
 </span>
 </div>
 <div class="drawer-section">
@@ -80,7 +80,7 @@
 </button>
 <div id="loopMenu" class="drawer-sub">
 <button>Current Loop · Nearby</button>
-<button>Home Loop · South Florida</button>
+<button id="drawerHomeLoop">Home Loop · Create a profile</button>
 <button>Explore outside your Loop</button>
 </div>
 </div>
@@ -834,7 +834,7 @@
     function readList(key){try{return JSON.parse(localStorage.getItem(key))||[]}catch{return[]}}function writeList(key,list){localStorage.setItem(key,JSON.stringify(list))}function notify(message){const toast=document.getElementById('toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2200)}
     function showPlace(id){currentPlace=id;const place=places[id];if(!place)return;hidePrimaryViews();placePage.classList.add('active');setActiveNav('navExplore');document.getElementById('placeTitle').textContent=place.name;document.getElementById('placeCategory').textContent=place.category;document.getElementById('placeAddress').textContent=place.address;document.getElementById('placeScore').textContent=place.score;document.getElementById('placeConfidence').textContent=place.confidence;document.getElementById('returnRate').textContent=place.returnRate;document.getElementById('matchRate').textContent=place.matchRate;renderExperiences(id);syncSaveButtons();scrollTo(0,0)}
     function openSearchPlace(button){const id='search-'+button.dataset.name.toLowerCase().replace(/[^a-z0-9]+/g,'-');places[id]={name:button.dataset.name,category:button.dataset.category,address:button.dataset.address,score:'New',confidence:'Gathering community experiences',returnRate:'—',matchRate:'—',experience:'Be the first person in your Loop to share a firsthand experience about this place.',author:'New to Loop'};showPlace(id)}
-    function renderExperiences(id){const place=places[id],mine=readList('loopExperiences').filter(x=>x.place===id),items=[...mine.map(x=>({text:x.text,author:'Jameson Smith · Rep 82',rating:x.rating})),{text:place.experience,author:place.author,rating:place.score}];document.getElementById('placeExperiences').innerHTML=items.map(x=>`<article class="experience-card"><b>${esc(x.author)}</b><span class="meta"> · ${esc(x.rating)}/10</span><p>${esc(x.text)}</p><span class="confirm">✓ Firsthand experience</span></article>`).join('')}
+    function renderExperiences(id){const place=places[id],mine=readList('loopExperiences').filter(x=>x.place===id),items=[...mine.map(x=>({text:x.text,author:(getProfile().name||'Loop member')+' · New contributor',rating:x.rating})),{text:place.experience,author:place.author,rating:place.score}];document.getElementById('placeExperiences').innerHTML=items.map(x=>`<article class="experience-card"><b>${esc(x.author)}</b><span class="meta"> · ${esc(x.rating)}/10</span><p>${esc(x.text)}</p><span class="confirm">✓ Firsthand experience</span></article>`).join('')}
     function getSaved(){return isProfileMode()?readList('loopSaved'):[]}function toggleSave(id,button){if(!requireProfile('save places'))return;if(!id||!places[id])return;const saved=getSaved(),index=saved.indexOf(id),adding=index<0;if(adding)saved.push(id);else saved.splice(index,1);writeList('loopSaved',saved);syncSaveButtons();renderSaved();notify(adding?'Saved to your places':'Removed from saved places')}function syncSaveButtons(){const saved=getSaved(),active=saved.includes(currentPlace);['detailSave','profileSave'].forEach(id=>{const button=document.getElementById(id);if(button)button.textContent=active?'♥ Saved':'♡ '+(id==='profileSave'?'Save place':'Save')});document.querySelectorAll('[data-place]').forEach(card=>{const button=card.querySelector('.feedback-row button:last-child');if(button)button.textContent=saved.includes(card.dataset.place)?'♥ Saved':'♡ Save'})}
     function showSaved(){if(!requireProfile('saved places'))return;closeMenu();hidePrimaryViews();savedPage.classList.add('active');setActiveNav('navExplore');renderSaved();scrollTo(0,0)}function renderSaved(){const ids=getSaved().filter(id=>places[id]),list=document.getElementById('savedList');list.innerHTML=ids.length?ids.map(id=>`<article class="saved-item"><div><h3>${esc(places[id].name)}</h3><span class="meta">${esc(places[id].category)} · Loop Rating ${esc(places[id].score)}</span></div><button class="edit" onclick="showPlace('${id}')">View</button></article>`).join(''):'<div class="saved-empty"><h2>No saved places yet</h2><p>Tap Save on a feed card or place profile to build your shortlist.</p><button class="primary" onclick="showHome()">Explore your Loop</button></div>'}
     function react(button,id,type){if(!requireProfile('interact with recommendations'))return;const key='loopReaction-'+id,previous=localStorage.getItem(key);button.closest('.feedback-row').querySelectorAll('button').forEach(x=>x.classList.remove('selected'));if(previous===type){localStorage.removeItem(key);notify('Feedback removed');return}localStorage.setItem(key,type);button.classList.add('selected');notify(type==='agree'?'Your agreement strengthens this experience':'Thanks—your Loop will learn from this')}
@@ -855,7 +855,7 @@
     };return map[feature]||'Create a Loop profile to use this personal feature.'}
     function requireProfile(feature){if(isProfileMode())return true;const gate=document.getElementById('accountGateDialog');document.getElementById('accountGateTitle').textContent='Create a profile to use '+feature;document.getElementById('accountGateCopy').textContent=featureCopy(feature);if(!gate.open)gate.showModal();return false}
     function applyAccountState(){
-      const mode=getAccountMode(),data=getProfile(),member=document.getElementById('memberProfileContent'),guest=document.getElementById('guestProfileCard'),edit=document.getElementById('profileEditButton'),homeAvatar=document.getElementById('homeMiniAvatar'),loopLabel=document.getElementById('currentLoopLabel');
+      const mode=getAccountMode(),data=getProfile(),member=document.getElementById('memberProfileContent'),guest=document.getElementById('guestProfileCard'),edit=document.getElementById('profileEditButton'),homeAvatar=document.getElementById('homeMiniAvatar'),loopLabel=document.getElementById('currentLoopLabel'),drawerAvatar=document.getElementById('drawerAccountAvatar'),drawerName=document.getElementById('drawerAccountName'),drawerMeta=document.getElementById('drawerAccountMeta'),drawerHomeLoop=document.getElementById('drawerHomeLoop');
       if(mode==='profile'&&data.name){
         member.classList.remove('guest-hidden');guest.classList.remove('active');edit.textContent='Edit profile';
         document.getElementById('profileName').textContent=data.name;
@@ -865,10 +865,18 @@
         document.getElementById('profileEmailDisplay').textContent=data.email||'Not set';
         if(homeAvatar)homeAvatar.textContent=initialsFor(data.name);
         if(loopLabel)loopLabel.textContent='● Current Loop · '+(data.location||'Nearby');
+        if(drawerAvatar)drawerAvatar.textContent=initialsFor(data.name);
+        if(drawerName)drawerName.textContent=data.name;
+        if(drawerMeta)drawerMeta.textContent='New Explorer'+(data.location?' · '+data.location:'');
+        if(drawerHomeLoop)drawerHomeLoop.textContent='Home Loop · '+(data.location||'Not set');
       }else{
         member.classList.add('guest-hidden');guest.classList.add('active');edit.textContent='Create profile';
         if(homeAvatar)homeAvatar.textContent='G';
         if(loopLabel)loopLabel.textContent='● Current Loop · Nearby';
+        if(drawerAvatar)drawerAvatar.textContent='G';
+        if(drawerName)drawerName.textContent='Guest';
+        if(drawerMeta)drawerMeta.textContent='Browsing without a profile';
+        if(drawerHomeLoop)drawerHomeLoop.textContent='Home Loop · Create a profile';
       }
       syncSaveButtons();
     }
