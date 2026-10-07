@@ -35,6 +35,20 @@ function queryCandidates(value = '', category = '') {
     return unique([q, 'auto repair', 'car repair', 'mechanic']);
   }
   if (/urgent care|doctor|medical|clinic/.test(q)) return unique([q, 'clinic']);
+  if (/\bbowling\b/.test(q)) return unique([q, 'bowling alley', 'bowling']);
+  if (/\barcade\b|video arcade|game arcade/.test(q)) return unique([q, 'arcade', 'amusement arcade', 'family entertainment center']);
+  if (/mini golf|miniature golf|putt[ -]?putt/.test(q)) return unique([q, 'miniature golf', 'mini golf']);
+  if (/go[ -]?karts?|go[ -]?cart|karting/.test(q)) return unique([q, 'go kart', 'karting']);
+  if (/roller skating|roller rink|skating rink/.test(q)) return unique([q, 'roller skating', 'skating rink']);
+  if (/escape room/.test(q)) return unique([q, 'escape room']);
+  if (/laser tag/.test(q)) return unique([q, 'laser tag']);
+  if (/trampoline/.test(q)) return unique([q, 'trampoline park']);
+  if (/action park|amusement park|theme park|family fun|fun center|entertainment center/.test(q)) {
+    return unique([q, 'amusement park', 'family entertainment center', 'arcade']);
+  }
+  if (category === 'fun-games' && /^(fun|games|fun and games|something fun|activities|things to do|nearby|something nearby)$/.test(q)) {
+    return ['family entertainment center', 'arcade', 'bowling alley', 'amusement park'];
+  }
 
   // Only normalize when the user actually made a broad category request.
   if (/^(restaurant|restaurants|food|places to eat|eat)$/.test(q) || (category === 'restaurants' && /^(nearby|something nearby)$/.test(q))) {
@@ -63,6 +77,15 @@ function hardIntentGroups(value = '') {
   if (/\btire\b|\btyre\b/.test(q)) groups.push(/\btire\b|\btyre\b|\btyres\b/i);
   if (/\bmechanic\b|\bauto repair\b|\bcar repair\b/.test(q)) groups.push(/\bmechanic\b|\bauto repair\b|\bcar repair\b|\bgarage\b/i);
   if (/\burgent care\b/.test(q)) groups.push(/\burgent care\b|\bclinic\b/i);
+  if (/\bbowling\b/.test(q)) groups.push(/\bbowling\b|\bbowling alley\b/i);
+  if (/\barcade\b|video arcade|game arcade/.test(q)) groups.push(/\barcade\b|\bamusement arcade\b|\bfamily entertainment\b/i);
+  if (/mini golf|miniature golf|putt[ -]?putt/.test(q)) groups.push(/\bmini golf\b|\bminiature golf\b|\bputt[ -]?putt\b/i);
+  if (/go[ -]?karts?|go[ -]?cart|karting/.test(q)) groups.push(/\bgo[ -]?karts?\b|\bkarting\b/i);
+  if (/roller skating|roller rink/.test(q)) groups.push(/\broller\b|\broller skating\b|\broller rink\b/i);
+  if (/escape room/.test(q)) groups.push(/\bescape room\b|\bescape game\b/i);
+  if (/laser tag/.test(q)) groups.push(/\blaser tag\b/i);
+  if (/trampoline/.test(q)) groups.push(/\btrampoline\b/i);
+  if (/amusement park|theme park/.test(q)) groups.push(/\bamusement park\b|\btheme park\b/i);
 
   return groups;
 }
