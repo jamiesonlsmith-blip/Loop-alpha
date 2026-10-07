@@ -1013,7 +1013,7 @@
     function submitCommunityReply(event){event.preventDefault();const textValue=document.getElementById('communityReplyText').value.trim();if(!communityTextAllowed(textValue)){notify('That reply needs different wording before it can be shared.');return}const replies=getCommunityReplies(),id=communityReplyTarget||document.getElementById('communityReplyPostId').value,data=getProfile();if(!replies[id])replies[id]=[];replies[id].push({author:data.name||'Loop member',text:textValue,createdAt:Date.now()});localStorage.setItem(COMMUNITY_REPLIES_KEY,JSON.stringify(replies));document.getElementById('communityReplyDialog').close();renderCommunity();notify('Reply added')}
     function openFeedback(){document.getElementById('feedbackText').value='';document.getElementById('feedbackEmail').value='';document.getElementById('feedbackWebsite').value='';document.getElementById('feedbackDialog').showModal()}async function submitFeedback(event){event.preventDefault();const button=document.getElementById('feedbackSubmit'),type=document.getElementById('feedbackType').value,message=document.getElementById('feedbackText').value.trim(),contactEmail=document.getElementById('feedbackEmail').value.trim(),website=document.getElementById('feedbackWebsite').value;const payload={type,message,contactEmail,website,pageUrl:location.href,appVersion:'Loop Alpha'};button.disabled=true;button.textContent='Sending…';try{const response=await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Feedback could not be sent');document.getElementById('feedbackDialog').close();if(data.notified)notify('Feedback sent to Loop — thank you');else notify('Feedback saved — email notification is delayed')}catch(error){const pending=readList('loopPendingFeedback');pending.unshift({...payload,createdAt:Date.now()});writeList('loopPendingFeedback',pending.slice(0,20));document.getElementById('feedbackDialog').close();notify('Could not send yet — a backup was saved on this device')}finally{button.disabled=false;button.textContent='Send feedback'}}    function restoreState(){syncSaveButtons();document.querySelectorAll('[data-place]').forEach(card=>{const type=localStorage.getItem('loopReaction-'+card.dataset.place);if(type){const button=card.querySelector(type==='agree'?'.feedback-row button:first-child':'.feedback-row .negative');if(button)button.classList.add('selected')}})}
     let loopAuthClient=null,authBackendReady=false,currentAuthUser=null,authSubscription=null;
-    const ACCOUNT_MODE_KEY='loopAccountModeV1',PROFILE_KEY='loopUserProfileV1',SIGNED_OUT_KEY='loopSignedOutV1';
+    const ACCOUNT_MODE_KEY='loopAccountModeV1',PROFILE_KEY='loopUserProfileV1',SIGNED_OUT_KEY='loopSignedOutV1',AUTH_MIGRATION_KEY='loopNeedsAuthMigrationV1';
     function getAccountMode(){return localStorage.getItem(ACCOUNT_MODE_KEY)||''}
     function isProfileMode(){return authBackendReady?!!currentAuthUser:(getAccountMode()==='profile'&&!!getProfile().name)}
     function getProfile(){try{return JSON.parse(localStorage.getItem(PROFILE_KEY))||{}}catch{return{}}}
@@ -1091,11 +1091,11 @@
         userId:user.id,
         authenticated:true
       };
-      localStorage.setItem(PROFILE_KEY,JSON.stringify(cached));localStorage.setItem(ACCOUNT_MODE_KEY,'profile');localStorage.removeItem(SIGNED_OUT_KEY);applyAccountState();configureOnboarding();
+      localStorage.setItem(PROFILE_KEY,JSON.stringify(cached));localStorage.setItem(ACCOUNT_MODE_KEY,'profile');localStorage.removeItem(SIGNED_OUT_KEY);localStorage.removeItem(AUTH_MIGRATION_KEY);applyAccountState();configureOnboarding();
     }
     async function initializeAuthBackend(){
       try{
-        const response=await fetch('/api/auth-config',{cache:'no-store'}),config=await response.json();
+        const cachedBeforeAuth=getProfile(),response=await fetch('/api/auth-config',{cache:'no-store'}),config=await response.json();
         if(!response.ok||!config.configured)return false;
         const module=await loadSupabaseModule();
         loopAuthClient=module.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -1104,7 +1104,7 @@
         if(error)console.warn('Loop auth session restore:',error.message);
         currentAuthUser=data?.session?.user||null;
         if(currentAuthUser)await syncAuthenticatedUser(currentAuthUser);
-        else{localStorage.setItem(ACCOUNT_MODE_KEY,'guest');applyAccountState()}
+        else{localStorage.setItem(ACCOUNT_MODE_KEY,'guest');if(cachedBeforeAuth.name&&!cachedBeforeAuth.authenticated)localStorage.setItem(AUTH_MIGRATION_KEY,'1');applyAccountState()}
         const {data:listener}=loopAuthClient.auth.onAuthStateChange((event,session)=>{
           setTimeout(async()=>{
             if(event==='PASSWORD_RECOVERY'){
@@ -1125,7 +1125,8 @@
     function configureOnboarding(){
       const data=getProfile(),resume=document.getElementById('resumeProfileButton'),signIn=document.getElementById('authSignInButton'),title=document.getElementById('onboardingTitle'),copy=document.getElementById('onboardingCopy'),createTitle=document.getElementById('onboardingCreateTitle'),createCopy=document.getElementById('onboardingCreateCopy'),note=document.getElementById('onboardingAccountNote');
       if(authBackendReady){
-        signIn.hidden=false;resume.hidden=true;title.textContent='Welcome to Loop';copy.innerHTML='<b>Guests can discover. Members are part of the Loop.</b> Sign in to your existing account, create a new account, or browse as a guest.';createTitle.textContent='Create Loop account';createCopy.textContent='Use your email and password to keep your Loop identity available across devices.';if(note)note.textContent='Secure account mode is connected. Email verification helps protect each Loop identity.';return;
+        const needsMigration=localStorage.getItem(AUTH_MIGRATION_KEY)==='1'&&!!data.name;
+        signIn.hidden=false;resume.hidden=true;title.textContent=needsMigration?'Secure your Loop profile':'Welcome to Loop';copy.innerHTML=needsMigration?'<b>Your Alpha profile is ready to become a real account.</b> Create secure credentials to keep your identity and profile available across devices.':'<b>Guests can discover. Members are part of the Loop.</b> Sign in to your existing account, create a new account, or browse as a guest.';createTitle.textContent=needsMigration?'Secure '+firstNameFor(data.name)+' as a real account':'Create Loop account';createCopy.textContent=needsMigration?'Your saved name, home area and tastes will be prefilled. Add a password and verify your email.':'Use your email and password to keep your Loop identity available across devices.';if(note)note.textContent='Secure account mode is connected. Email verification helps protect each Loop identity.';return;
       }
       signIn.hidden=true;
       if(data.name){resume.hidden=false;document.getElementById('resumeProfileTitle').textContent='Continue as '+firstNameFor(data.name);document.getElementById('resumeProfileCopy').textContent=(data.email?data.email+' · ':'')+'Profile saved on this device';title.textContent='Welcome back';copy.innerHTML='<b>Guests can discover. Members are part of the Loop.</b> Continue your saved device profile, use a different profile for testing, or browse as a guest.';createTitle.textContent='Use a different profile';createCopy.textContent='For Alpha testing, this replaces the profile currently saved on this device.'}else{resume.hidden=true;title.textContent='How do you want to explore?';copy.innerHTML='<b>Guests can discover. Members are part of the Loop.</b> Browse without a profile, or create one to unlock personalized recommendations, Community, saved discoveries, notifications and reputation.';createTitle.textContent='Become part of the Loop';createCopy.textContent='Get a personalized home, taste-aware recommendations, Community, saved discoveries, notifications and reputation.'}
@@ -1155,7 +1156,7 @@
     function backToOnboarding(){const setup=document.getElementById('profileSetupDialog');if(setup.open)setup.close();openOnboarding()}
     function guestAccountAction(){if(authBackendReady){openOnboarding();return}const data=getProfile();if(data.name)resumeSavedProfile();else startProfileSetup()}
     function resumeSavedProfile(){if(authBackendReady){openSignIn();return}const data=getProfile();if(!data.name){startProfileSetup();return}localStorage.setItem(ACCOUNT_MODE_KEY,'profile');localStorage.removeItem(SIGNED_OUT_KEY);const onboarding=document.getElementById('onboardingDialog'),gate=document.getElementById('accountGateDialog');if(onboarding.open)onboarding.close();if(gate.open)gate.close();applyAccountState();showHome();notify('Welcome back, '+firstNameFor(data.name))}
-    function continueAsGuest(){localStorage.setItem(ACCOUNT_MODE_KEY,'guest');localStorage.removeItem(SIGNED_OUT_KEY);const onboarding=document.getElementById('onboardingDialog');if(onboarding.open)onboarding.close();applyAccountState();showHome();notify('Browsing Loop as a guest')}
+    function continueAsGuest(){localStorage.setItem(ACCOUNT_MODE_KEY,'guest');localStorage.removeItem(SIGNED_OUT_KEY);if(authBackendReady)localStorage.removeItem(AUTH_MIGRATION_KEY);const onboarding=document.getElementById('onboardingDialog');if(onboarding.open)onboarding.close();applyAccountState();showHome();notify('Browsing Loop as a guest')}
     function openSignOut(){if(!isProfileMode())return;closeMenu();const dialog=document.getElementById('signOutDialog'),copy=document.getElementById('signOutCopy'),note=document.getElementById('signOutNote');if(authBackendReady){copy.textContent='You’ll switch back to guest mode on this device.';note.textContent='Your Loop account and profile stay safely connected to your email. Sign back in anytime to restore this account.'}else{copy.textContent='You’ll switch back to guest mode. Your Alpha profile stays saved on this device so you can return to it later.';note.textContent='This is still a device-only Alpha profile until real authentication is connected.'}if(!dialog.open)dialog.showModal()}
     async function signOutToGuest(){const dialog=document.getElementById('signOutDialog');if(dialog.open)dialog.close();if(authBackendReady&&loopAuthClient){try{await loopAuthClient.auth.signOut({scope:'local'})}catch(error){console.warn('Loop sign out:',error)}}currentAuthUser=null;localStorage.setItem(ACCOUNT_MODE_KEY,'guest');localStorage.setItem(SIGNED_OUT_KEY,'1');if(authBackendReady)localStorage.removeItem(PROFILE_KEY);applyAccountState();showHome();notify('Signed out — browsing as a guest')}
     async function createAlphaProfile(event){
@@ -1173,6 +1174,7 @@
       try{
         const {data:result,error}=await loopAuthClient.auth.signUp({email:data.email,password,options:{emailRedirectTo:authRedirect('?auth=verified'),data:{display_name:data.name,home_area:data.location,work_title:data.role,tastes:data.tastes}}});
         if(error)throw error;
+        localStorage.removeItem(AUTH_MIGRATION_KEY);
         if(result.session?.user){await syncAuthenticatedUser(result.session.user);document.getElementById('profileSetupDialog').close();showHome();notify('Your Loop account is ready');setTimeout(maybeOfferNotifications,1200)}
         else{localStorage.setItem(ACCOUNT_MODE_KEY,'guest');document.getElementById('verificationCopy').textContent='We sent a verification link to '+data.email+'. Open it to finish creating your Loop account.';document.getElementById('profileSetupDialog').close();const verification=document.getElementById('verificationDialog');if(!verification.open)verification.showModal()}
       }catch(error){setAuthMessage('profileSetupMessage',error?.message||'Loop could not create that account. Please try again.')}
@@ -1223,7 +1225,7 @@
     async function initializeAccount(){
       const realAuth=await initializeAuthBackend();
       applyAccountState();configureOnboarding();
-      const onboarding=document.getElementById('onboardingDialog'),shouldPrompt=realAuth?(!currentAuthUser&&localStorage.getItem(ACCOUNT_MODE_KEY)!=='guest'||localStorage.getItem(SIGNED_OUT_KEY)==='1'):(!getAccountMode()||localStorage.getItem(SIGNED_OUT_KEY)==='1');
+      const onboarding=document.getElementById('onboardingDialog'),shouldPrompt=realAuth?((!currentAuthUser&&localStorage.getItem(ACCOUNT_MODE_KEY)!=='guest')||localStorage.getItem(SIGNED_OUT_KEY)==='1'||localStorage.getItem(AUTH_MIGRATION_KEY)==='1'):(!getAccountMode()||localStorage.getItem(SIGNED_OUT_KEY)==='1');
       onboarding.addEventListener('cancel',event=>{if(!getAccountMode())event.preventDefault()});
       if(shouldPrompt)requestAnimationFrame(()=>openOnboarding());
     }
