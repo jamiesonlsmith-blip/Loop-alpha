@@ -1,4 +1,4 @@
-const CACHE_NAME = 'loop-alpha-v9';
+const CACHE_NAME = 'loop-alpha-v10';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -29,6 +29,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname === '/manifest.webmanifest') {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -60,8 +64,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'Loop';
   const options = {
     body: data.body || 'You have new activity in Loop.',
-    icon: '/icons/icon-192.png?v=5',
-    badge: '/icons/icon-192.png?v=5',
+    icon: '/icons/icon-192.png?v=10',
+    badge: '/icons/icon-192.png?v=10',
     tag: data.tag || 'loop-update',
     data: { url: data.url || '/?view=activity' }
   };
