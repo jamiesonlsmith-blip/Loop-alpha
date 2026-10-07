@@ -132,6 +132,8 @@
 </div>
 <div class="drawer-section">
 <div class="drawer-label">Account</div>
+<button id="drawerSignIn" class="drawer-link" onclick="closeMenu();openSignIn()" hidden>
+<span class="mi">↪</span>Sign in</button>
 <button class="drawer-link" onclick="showProfile()">
 <span class="mi">☺</span>Profile & Reputation</button>
 <button class="drawer-link" onclick="showMessenger()">
@@ -140,8 +142,6 @@
 <span class="mi">♢</span>Notifications</button>
 <button class="drawer-link" onclick="showSettings()">
 <span class="mi">⚙</span>Settings &amp; privacy</button>
-<button id="drawerSignOut" class="drawer-link drawer-signout" onclick="openSignOut()" hidden>
-<span class="mi">↪</span>Sign out</button>
 <button class="drawer-toggle" onclick="toggleMenuGroup('helpMenu',this)">
 <span class="mi">?</span>Help & information<span class="plus">+</span>
 </button>
@@ -150,6 +150,8 @@
 <button onclick="showCommunityGuidelines()">Community Guidelines</button>
 <button onclick="showContactSupport()">Contact support</button>
 </div>
+<button id="drawerSignOut" class="drawer-link drawer-signout" onclick="openSignOut()" hidden>
+<span class="mi">↪</span>Sign out</button>
 </div>
 <div class="drawer-legal">
 <div class="drawer-version">Loop™ Alpha · Early access</div>
@@ -1032,9 +1034,12 @@
     function greetingForNow(){const hour=new Date().getHours();return hour<12?'Good morning':hour<17?'Good afternoon':'Good evening'}
     function firstNameFor(name){return String(name||'').trim().split(/\s+/)[0]||'there'}
     function applyAccountState(){
-      const mode=getAccountMode(),data=getProfile(),member=document.getElementById('memberProfileContent'),guest=document.getElementById('guestProfileCard'),edit=document.getElementById('profileEditButton'),homeAvatar=document.getElementById('homeMiniAvatar'),loopLabel=document.getElementById('currentLoopLabel'),drawerAvatar=document.getElementById('drawerAccountAvatar'),drawerName=document.getElementById('drawerAccountName'),drawerMeta=document.getElementById('drawerAccountMeta'),drawerHomeLoop=document.getElementById('drawerHomeLoop'),drawerSignOut=document.getElementById('drawerSignOut'),greetingKicker=document.getElementById('homeGreetingKicker'),greetingName=document.getElementById('homeGreetingName'),greetingCopy=document.getElementById('homeGreetingCopy'),guestNudge=document.getElementById('guestHomeNudge'),guestNudgeTitle=document.getElementById('guestNudgeTitle'),guestNudgeCopy=document.getElementById('guestNudgeCopy'),guestProfileAction=document.getElementById('guestProfileAction'),memberBadge=document.getElementById('memberHomeBadge'),memberContext=document.getElementById('memberHomeContext'),communityTeaser=document.getElementById('memberCommunityTeaser'),communityAvatar=document.getElementById('communityAvatar');
-      if(isProfileMode()&&data.name){
-        member.classList.remove('guest-hidden');guest.classList.remove('active');edit.textContent='Edit profile';if(drawerSignOut)drawerSignOut.hidden=false;
+      const mode=getAccountMode(),data=getProfile(),member=document.getElementById('memberProfileContent'),guest=document.getElementById('guestProfileCard'),edit=document.getElementById('profileEditButton'),homeAvatar=document.getElementById('homeMiniAvatar'),loopLabel=document.getElementById('currentLoopLabel'),drawerAvatar=document.getElementById('drawerAccountAvatar'),drawerName=document.getElementById('drawerAccountName'),drawerMeta=document.getElementById('drawerAccountMeta'),drawerHomeLoop=document.getElementById('drawerHomeLoop'),drawerSignIn=document.getElementById('drawerSignIn'),drawerSignOut=document.getElementById('drawerSignOut'),greetingKicker=document.getElementById('homeGreetingKicker'),greetingName=document.getElementById('homeGreetingName'),greetingCopy=document.getElementById('homeGreetingCopy'),guestNudge=document.getElementById('guestHomeNudge'),guestNudgeTitle=document.getElementById('guestNudgeTitle'),guestNudgeCopy=document.getElementById('guestNudgeCopy'),guestProfileAction=document.getElementById('guestProfileAction'),memberBadge=document.getElementById('memberHomeBadge'),memberContext=document.getElementById('memberHomeContext'),communityTeaser=document.getElementById('memberCommunityTeaser'),communityAvatar=document.getElementById('communityAvatar');
+      const signedIn=isProfileMode();
+      if(signedIn){
+        const displayName=data.name||currentAuthUser?.user_metadata?.display_name||String(currentAuthUser?.email||'').split('@')[0]||'Loop member';
+        if(!data.name){data.name=displayName;localStorage.setItem(PROFILE_KEY,JSON.stringify(data))}
+        member.classList.remove('guest-hidden');guest.classList.remove('active');edit.textContent='Edit profile';if(drawerSignIn)drawerSignIn.hidden=true;if(drawerSignOut)drawerSignOut.hidden=false;
         if(greetingKicker)greetingKicker.textContent=greetingForNow()+',';
         if(greetingName)greetingName.textContent=firstNameFor(data.name);
         if(greetingCopy)greetingCopy.textContent='What are you looking for today? Your Loop will use your profile, tastes and context to make discovery more relevant.';
@@ -1054,7 +1059,7 @@
         if(drawerMeta)drawerMeta.textContent='New Explorer'+(data.location?' · '+data.location:'');
         if(drawerHomeLoop)drawerHomeLoop.textContent='Home Loop · '+(data.location||'Not set');
       }else{
-        member.classList.add('guest-hidden');guest.classList.add('active');const hasLocalResume=!authBackendReady&&!!data.name;edit.textContent=authBackendReady?'Sign in / Create account':(hasLocalResume?'Continue profile':'Create profile');if(drawerSignOut)drawerSignOut.hidden=true;
+        member.classList.add('guest-hidden');guest.classList.add('active');const hasLocalResume=!authBackendReady&&!!data.name;edit.textContent=authBackendReady?'Sign in / Create account':(hasLocalResume?'Continue profile':'Create profile');if(drawerSignIn)drawerSignIn.hidden=false;if(drawerSignOut)drawerSignOut.hidden=true;
         if(guestNudgeTitle)guestNudgeTitle.textContent=authBackendReady?'Make Loop yours':(hasLocalResume?'Your Loop profile is still here':'Make Loop yours');
         if(guestNudgeCopy)guestNudgeCopy.textContent=authBackendReady?'Sign in or create an account to unlock personalized recommendations, Community, Messenger, saved discoveries and reputation on any device.':(hasLocalResume?'Continue as '+firstNameFor(data.name)+' anytime, or keep exploring as a guest. Your Alpha profile is saved on this device.':'Guests can discover. Members are part of the Loop — with personalized recommendations, Community, saved discoveries and more.');
         if(guestProfileAction)guestProfileAction.textContent=authBackendReady?'Sign in / Create account':(hasLocalResume?'Continue as '+firstNameFor(data.name):'Create profile');
