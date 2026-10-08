@@ -41,6 +41,19 @@ jobs:
           counts = collections.Counter()
           accepted = []
           source = Path('overture_broward.geojsonseq')
+          with source.open('r',encoding='utf-8') as fd:
+              for n in range(3):
+                  line = fd.readline().lstrip('\x1e').strip()
+                  if not line: continue
+                  obj = json.loads(line)
+                  print('LOOP_GEOJSON_SAMPLE_KEYS',sorted(obj.keys()))
+                  print('LOOP_GEOJSON_SAMPLE_TYPE',obj.get('type'))
+                  print('LOOP_GEOJSON_SAMPLE_GEOMETRY',str(obj.get('geometry'))[:140])
+                  print('LOOP_GEOJSON_SAMPLE_NAMES',str(obj.get('names') or (obj.get('properties') or {}).get('names'))[:140])
+                  print('LOOP_GEOJSON_SAMPLE_PROPS_KEYS',sorted((obj.get('properties') or {}).keys())[:40])
+                  print('LOOP_GEOJSON_SAMPLE_CONFIDENCE',obj.get('confidence'),(obj.get('properties') or {}).get('confidence'))
+                  print('LOOP_GEOJSON_SAMPLE_ID',obj.get('id'),(obj.get('properties') or {}).get('id'))
+          
           for p in importer.records(source, importer.REGIONS['broward'], release, .55):
               counts[(p['basic_category'] or p['taxonomy_primary'] or 'uncategorized')] += 1
               # Uniform deterministic sampling across stable IDs, preserving categories.
