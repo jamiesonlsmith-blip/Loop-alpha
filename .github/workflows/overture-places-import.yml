@@ -1,0 +1,72 @@
+name: Import Overture places (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: South Florida pilot region
+        required: true
+        type: choice
+        options:
+          - broward
+          - miami_dade
+          - palm_beach
+      dry_run:
+        description: Preview only; set false to write to Supabase
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  import-places:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify importer tests
+        run: python -m unittest discover -s tests -p 'test_overture_import.py' -v
+      - name: Install Overture official data client
+        run: python -m pip install overturemaps
+      - name: Resolve pilot region bounding box
+        id: area
+        shell: bash
+        env:
+          PILOT_REGION: ${{ inputs.region }}
+        run: |
+          case "$PILOT_REGION" in
+            broward) BBOX="-80.53,25.94,-80.04,26.42";;
+            miami_dade) BBOX="-80.90,25.35,-80.06,25.99";;
+            palm_beach) BBOX="-80.80,26.35,-79.95,27.06";;
+            *) echo "Unsupported pilot region"; exit 2;;
+          esac
+          echo "bbox=$BBOX" >> "$GITHUB_OUTPUT"
+      - name: Download official Overture places (latest STAC release)
+        env:
+          AREA_BBOX: ${{ steps.area.outputs.bbox }}
+        run: |
+          overturemaps download --bbox="$AREA_BBOX" --type=place \
+            -f geojsonseq -o overture_places.geojsonseq
+      - name: Preflight records and spatial boundaries
+        env:
+          PILOT_REGION: ${{ inputs.region }}
+        run: |
+          python scripts/import_overture_places.py \
+            --input overture_places.geojsonseq --region "$PILOT_REGION" \
+            --max-records 30000 --dry-run
+      - name: Load the private Supabase index
+        if: ${{ inputs.dry_run == false }}
+        env:
+          PILOT_REGION: ${{ inputs.region }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_SECRET_KEY" || \
+            (echo "Configure SUPABASE_URL and SUPABASE_SECRET_KEY as GitHub Actions secrets" && exit 1)
+          python scripts/import_overture_places.py \
+            --input overture_places.geojsonseq --region "$PILOT_REGION" \
+            --max-records 30000
