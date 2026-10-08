@@ -1,0 +1,23 @@
+name: Place search regression tests
+on:
+  pull_request:
+    paths:
+      - 'api/places.js'
+      - 'tests/place-search.test.mjs'
+      - '.github/workflows/place-search-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/places.js'
+      - 'tests/place-search.test.mjs'
+jobs:
+  search-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test search intent and place lookup
+        run: node --test tests/place-search.test.mjs
