@@ -1,5 +1,5 @@
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_URLS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
 
 const SEARCH_SCOPES = {
@@ -126,7 +126,7 @@ const SEARCH_VOCABULARY = [
 const CUISINE_VOCABULARY = [
   { key: 'haitian', aliases: /\b(haitian|haiti|kreyol|griot|pikliz)\b/i,
     cuisine: /\bhaitian\b/i, name: /\bhaitian\b|\bhaiti\b|\bkreyol\b/i,
-    osmCuisine: 'haitian|creole|caribbean', osmName: 'haitian|haiti|kreyol|lakay',
+    osmCuisine: 'haitian|creole|caribbean', osmName: 'haitian|haiti|kreyol|lakay|creole',
     relatedCuisine: /\b(creole|caribbean)\b/i, relatedName: /\blakay\b/i,
     relatedNote: 'Caribbean/Creole option · Haitian dishes not confirmed' },
   { key: 'jamaican', aliases: /\b(jamaican|jamaica|ackee)\b/i,
@@ -598,15 +598,74 @@ async function searchCuisineOverpass(intent, lat, lon, radiusMiles) {
   const cuisine = intent.cuisine;
   // Both regex patterns are fixed, allowlisted vocabulary values, never raw user input.
   const query = `[out:json][timeout:12];(nwr${around}["amenity"~"^(restaurant|fast_food|cafe)$"]["cuisine"~"${cuisine.osmCuisine}",i];nwr${around}["amenity"~"^(restaurant|fast_food|cafe)$"]["name"~"${cuisine.osmName}",i];);out center 80;`;
-  const response = await fetch(OVERPASS_URL, {
+  // Fail over when a public Overpass mirror is busy or down. Do not silently
+  // interpret an unavailable provider as proof that no matching business exists.
+  let lastError;
+  for (const endpoint of OVERPASS_URLS) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+        body: new URLSearchParams({ data: query }),
+        signal: AbortSignal.timeout(4800)
+      });
+      if (!response.ok) throw new Error('Overpass HTTP ' + response.status);
+      const json = await response.json();
+      return Array.isArray(json.elements) ? json.elements.map(overpassItem).filter(Boolean) : [];
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Overpass is unavailable');
+}
+
+
+/*
+ * An optional, more complete POI index for cuisine discovery. OSM/Nominatim
+ * often omit restaurant cuisine tags; a free-text geocoder cannot compensate.
+ * Configure GOOGLE_PLACES_API_KEY in Vercel to enable Places Text Search (New).
+ * Never send the server-side key to clients or pretend a search hit verifies
+ * a dish or the current menu.
+ */
+async function searchCuisineGooglePlaces(intent, lat, lon, radiusMiles) {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey || !intent.cuisine) return { enabled: false, items: [] };
+  const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
-    body: new URLSearchParams({ data: query }),
-    signal: AbortSignal.timeout(8500)
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.primaryType,places.googleMapsUri'
+    },
+    body: JSON.stringify({
+      textQuery: intent.cuisine.key + ' restaurants',
+      pageSize: 20,
+      locationBias: { circle: { center: { latitude: lat, longitude: lon },
+        radius: Math.min(50000, Math.max(1000, radiusMiles * 1609.344)) } }
+    }),
+    signal: AbortSignal.timeout(6500)
   });
-  if (!response.ok) throw new Error('Overpass HTTP ' + response.status);
-  const json = await response.json();
-  return Array.isArray(json.elements) ? json.elements.map(overpassItem).filter(Boolean) : [];
+  if (!response.ok) throw new Error('Places search HTTP ' + response.status);
+  const data = await response.json();
+  const items = (Array.isArray(data.places) ? data.places : []).map(place => {
+    const types = Array.isArray(place.types) ? place.types : [];
+    const isFood = types.some(type => type === 'restaurant' ||
+      type.endsWith('_restaurant') || type === 'cafe' || type === 'meal_takeaway');
+    const name = cleanText(place.displayName?.text);
+    const plat = Number(place.location?.latitude), plon = Number(place.location?.longitude);
+    if (!isFood || !name || !place.id || !Number.isFinite(plat) || !Number.isFinite(plon)) return null;
+    return {
+      place_id: 'google:' + place.id,
+      name,
+      display_name: [name, cleanText(place.formattedAddress)].filter(Boolean).join(', '),
+      type: 'restaurant', category: 'amenity',
+      lat: plat, lon: plon, address: {},
+      loop_discovery_provider: 'google-places',
+      loop_google_maps_url: cleanText(place.googleMapsUri),
+      namedetails: { name }
+    };
+  }).filter(Boolean);
+  return { enabled: true, items };
 }
 
 async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
@@ -698,21 +757,27 @@ export default async function handler(req, res) {
     let directCount = 0;
     let relatedCount = 0;
     let providerSucceeded = false;
+    let googlePlacesUsed = false;
     const addMatchedItem = item => {
       const itemLat = Number(item.lat), itemLon = Number(item.lon);
       if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon) ||
           milesBetween(lat, lon, itemLat, itemLon) > radiusMiles) return;
-      const matchType = intent.cuisine
-        ? (passesIntent(item, query) ? cuisineMatchType(item, intent, query) : null)
-        : (hardIntentGroups(query).length && !passesIntent(item, query)
-            ? (intent.key !== 'general' && passesRelatedIntent(item, intent) ? 'related' : null)
-            : 'direct');
+      const isPlacesSuggestion = item.loop_discovery_provider === 'google-places';
+      const matchType = isPlacesSuggestion && intent.cuisine
+        ? (cuisineMatchType(item, intent, query) || 'related')
+        : intent.cuisine
+          ? (passesIntent(item, query) ? cuisineMatchType(item, intent, query) : null)
+          : (hardIntentGroups(query).length && !passesIntent(item, query)
+              ? (intent.key !== 'general' && passesRelatedIntent(item, intent) ? 'related' : null)
+              : 'direct');
       if (!matchType) return;
       const key = resultKey(item);
       if (seen.has(key)) return;
       seen.add(key);
-      const note = matchType === 'related' ? intent.relatedNote :
-        (intent.cuisine ? 'Cuisine listed in place data · Verify current menu' : '');
+      const note = isPlacesSuggestion
+        ? 'Places search suggestion · Confirm cuisine and current menu'
+        : matchType === 'related' ? intent.relatedNote :
+          (intent.cuisine ? 'Cuisine listed in place data · Verify current menu' : '');
       merged.push(enrichItem(item, query, category, lat, lon, matchType, note));
       if (matchType === 'direct') directCount++;
       else relatedCount++;
@@ -731,7 +796,8 @@ export default async function handler(req, res) {
       }
     }
 
-    const namesToFind = intent.cuisine ? intent.exactQueries.slice(0, 1) : intent.exactQueries;
+    // Search for the actual cuisine category, not a long natural-language phrase.
+    const namesToFind = intent.cuisine ? [intent.cuisine.key + ' restaurant'] : intent.exactQueries;
     for (const candidate of namesToFind) {
       try {
         const found = await searchNominatim(candidate, viewbox, language);
@@ -740,6 +806,21 @@ export default async function handler(req, res) {
         found.forEach(addMatchedItem);
       } catch (error) {
         console.warn('Loop name lookup unavailable:', error?.message || error);
+      }
+    }
+    // If the OSM index is sparse, enrich from an independently maintained
+    // restaurant index when the project has explicitly configured its API key.
+    if (intent.cuisine && directCount < 6) {
+      try {
+        const places = await searchCuisineGooglePlaces(intent, lat, lon, radiusMiles);
+        if (places.enabled) {
+          googlePlacesUsed = true;
+          providerSucceeded = true;
+          matchedQueries.push('Google Places: ' + intent.cuisine.key);
+          places.items.forEach(addMatchedItem);
+        }
+      } catch (error) {
+        console.warn('Loop supplemental places lookup unavailable:', error?.message || error);
       }
     }
     if (!providerSucceeded) throw new Error('No place-search providers are available');
@@ -781,7 +862,10 @@ export default async function handler(req, res) {
     const withPhotos = await addPhotos(merged.slice(0, 15));
     const items = withPhotos.map(({ loop_relevance, ...item }) => item);
 
-    res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
+    // Do not cache empty coverage for an hour while a transient provider outage resolves.
+    res.setHeader('Cache-Control', items.length
+      ? 'public, s-maxage=120, stale-while-revalidate=180'
+      : 'public, s-maxage=30, stale-while-revalidate=30');
     return res.status(200).json({
       query,
       matchedQueries,
@@ -796,8 +880,12 @@ export default async function handler(req, res) {
       directCount,
       relatedCount,
       items,
+      discoveryProviders: matchedQueries.filter(value => /^OpenStreetMap cuisine:|^Google Places:/.test(value)),
+      supplementalPlacesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY),
       coverage: 'OpenStreetMap listings may be incomplete. A missing result does not establish that no business exists.',
-      attribution: 'Place data © OpenStreetMap contributors. Photos, when available, © Wikimedia Commons contributors.'
+      attribution: 'Place data © OpenStreetMap contributors.' +
+        (googlePlacesUsed ? ' Google Places results © Google.' : '') +
+        ' Photos, when available, © Wikimedia Commons contributors.'
     });
   } catch (error) {
     console.error('Loop place search error:', error && error.message ? error.message : error);
