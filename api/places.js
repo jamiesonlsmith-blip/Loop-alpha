@@ -173,6 +173,8 @@ function cuisineQueryNeedsDishVerification(query, cuisineKey) {
 }
 
 function cuisineMatchType(item, intent, query) {
+  // Cuisine keywords in a non-food place's name are not restaurant matches.
+  if (!['restaurant', 'fast_food', 'cafe', 'food_court'].includes(normalize(item.type))) return null;
   const cuisine = normalize(item.extratags?.cuisine || item.tags?.cuisine || item.cuisine);
   const name = normalize(item.name || item.namedetails?.name);
   const direct = intent.cuisine.cuisine.test(cuisine) || intent.cuisine.name.test(name);
@@ -701,7 +703,7 @@ export default async function handler(req, res) {
       if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon) ||
           milesBetween(lat, lon, itemLat, itemLon) > radiusMiles) return;
       const matchType = intent.cuisine
-        ? cuisineMatchType(item, intent, query)
+        ? (passesIntent(item, query) ? cuisineMatchType(item, intent, query) : null)
         : (hardIntentGroups(query).length && !passesIntent(item, query)
             ? (intent.key !== 'general' && passesRelatedIntent(item, intent) ? 'related' : null)
             : 'direct');
@@ -802,3 +804,6 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: 'Place search is temporarily unavailable.' });
   }
 }
+
+// Small, side-effect-free exports for search-intent regression tests.
+export { searchIntent, cuisineMatchType, overpassItem, resultKey };
