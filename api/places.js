@@ -705,6 +705,102 @@ async function searchCuisineGooglePlaces(intent, lat, lon, radiusMiles) {
   return { enabled: true, items };
 }
 
+
+// Overture is the first-party searchable index. Search only through Loop's
+// own Supabase database; never expose service role credentials to the client.
+function overtureTerms(intent, query) {
+  if (intent.cuisine) return [intent.cuisine.key];
+  const categoryTerms = {
+    'restaurant-general': ['restaurant', 'cafe', 'food_court'],
+    'brake-service': ['car_repair', 'auto_repair', 'vehicle_repair'],
+    'body-shop': ['auto_body', 'body_shop', 'collision_repair'],
+    'oil-change': ['oil_change', 'car_repair'],
+    'tire-service': ['tire', 'tyre'],
+    mechanic: ['car_repair', 'auto_repair', 'mechanic'],
+    'urgent-care': ['urgent_care', 'walk_in_clinic'],
+    dentist: ['dentist', 'dental'],
+    electrician: ['electrician'],
+    plumber: ['plumber'],
+    hvac: ['hvac', 'air_conditioning'],
+    rooftop: ['rooftop', 'sky_lounge'],
+    brunch: ['brunch'],
+    sushi: ['sushi', 'japanese_restaurant'],
+    vegan: ['vegan'],
+    coffee: ['coffee_shop', 'cafe'],
+    pizza: ['pizza_restaurant', 'pizzeria'],
+    bowling: ['bowling'],
+    arcade: ['arcade'],
+    'mini-golf': ['miniature_golf'],
+    karting: ['go_kart', 'karting'],
+    'roller-skating': ['roller_skating'],
+    'escape-room': ['escape_room'],
+    'laser-tag': ['laser_tag'],
+    trampoline: ['trampoline'],
+    'fun-center': ['amusement_park', 'entertainment_center'],
+    'fun-general': ['arcade', 'bowling', 'amusement_park'],
+    parks: ['park'],
+    retail: ['clothing_store', 'shoe_store', 'jewelry_store', 'shop']
+  };
+  return (categoryTerms[intent.key] || meaningfulTokens(query).slice(0, 3))
+    .map(value => normalize(value).replace(/[^a-z0-9_ -]/g, ''))
+    .filter(value => value.length >= 2).slice(0, 6);
+}
+
+function overtureItem(row) {
+  if (!row || !row.overture_id || !row.name) return null;
+  const lat = Number(row.latitude), lon = Number(row.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const category = normalize(row.taxonomy_primary || row.basic_category || '');
+  const food = /restaurant|cafe|fast_food|food_court|diner/.test(category);
+  const auto = /vehicle_repair|car_repair|auto_repair|garage|body_shop/.test(category);
+  const type = food ? 'restaurant' : auto ? 'car_repair' : category;
+  const cuisine = food ? category.replace(/_/g, ' ') : '';
+  return {
+    place_id: 'overture:' + String(row.overture_id),
+    name: cleanText(row.name), type, category: 'overture',
+    lat, lon,
+    display_name: [row.name, row.full_address, row.locality, row.region, row.country]
+      .map(cleanText).filter(Boolean).join(', '),
+    address: {
+      road: cleanText(row.full_address),
+      city: cleanText(row.locality), state: cleanText(row.region),
+      country: cleanText(row.country), country_code: normalize(row.country)
+    },
+    extratags: { cuisine, taxonomy: category },
+    namedetails: { name: cleanText(row.name) },
+    loop_discovery_provider: 'overture',
+    loop_source_release: cleanText(row.source_release),
+    loop_listing_source_url: 'https://overturemaps.org/',
+    loop_overture_confidence: row.confidence
+  };
+}
+
+async function searchOvertureIndex(intent, query, lat, lon, radiusMiles) {
+  const base = cleanText(process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!base || !key) return { configured: false, items: [] };
+  const terms = overtureTerms(intent, query);
+  if (!terms.length) return { configured: true, items: [] };
+  const response = await fetch(base + '/rest/v1/rpc/loop_search_index', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json', apikey: key,
+      Authorization: 'Bearer ' + key
+    },
+    body: JSON.stringify({
+      in_lat: lat, in_lon: lon, in_radius_miles: radiusMiles,
+      in_terms: terms, in_limit: 35
+    }),
+    signal: AbortSignal.timeout(4500)
+  });
+  if (!response.ok) throw new Error('Overture index HTTP ' + response.status);
+  const data = await response.json();
+  return {
+    configured: true,
+    items: Array.isArray(data) ? data.map(overtureItem).filter(Boolean) : []
+  };
+}
+
 async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
   const params = new URLSearchParams({
     format: 'jsonv2',
@@ -796,6 +892,8 @@ export default async function handler(req, res) {
     let relatedCount = 0;
     let providerSucceeded = false;
     let googlePlacesUsed = false;
+    let overtureIndexUsed = false;
+    let overtureResults = 0;
     const addMatchedItem = item => {
       const itemLat = Number(item.lat), itemLon = Number(item.lon);
       if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon)) return;
@@ -813,7 +911,9 @@ export default async function handler(req, res) {
       const key = resultKey(item);
       if (seen.has(key)) return;
       seen.add(key);
-      const note = item.loop_discovery_provider === 'loop-curated'
+      const note = item.loop_discovery_provider === 'overture'
+        ? (matchType === 'direct' ? 'Category from Overture Maps · Confirm current details' : intent.relatedNote)
+        : item.loop_discovery_provider === 'loop-curated'
         ? 'Source-backed local listing · Check current hours before visiting'
         : isPlacesSuggestion
           ? 'Places search suggestion · Confirm cuisine and current menu'
@@ -824,16 +924,30 @@ export default async function handler(req, res) {
       else relatedCount++;
     };
 
-    // Local source-backed listings do not depend on the OSM cuisine index.
-    const localCandidates = sourceBackedLocalCandidates(intent, lat, lon, radiusMiles);
+    // Query Loop's own Overture-backed index first, before any live providers.
+    try {
+      const indexed = await searchOvertureIndex(intent, query, lat, lon, radiusMiles);
+      if (indexed.configured) {
+        overtureIndexUsed = true;
+        providerSucceeded = true;
+        matchedQueries.push('Overture Maps / Loop index');
+        indexed.items.forEach(addMatchedItem);
+        overtureResults = indexed.items.length;
+      }
+    } catch (error) {
+      console.warn('Loop indexed place lookup unavailable:', error?.message || error);
+    }
+
+    // Source-backed local coverage protects known listings while the bulk
+    // Overture import is staged. Never use city coordinates as a real pin.
+    const localCandidates = merged.length >= 5 ? [] :
+      sourceBackedLocalCandidates(intent, lat, lon, radiusMiles);
     localCandidates.forEach(addMatchedItem);
     if (localCandidates.length) {
       providerSucceeded = true;
       matchedQueries.push('Loop source-backed local directory');
     }
-    // Return a useful starter set immediately where coverage is established;
-    // remote lookups remain available for other searches and regions.
-    const enoughLocalCoverage = localCandidates.length >= 3;
+    const enoughLocalCoverage = merged.length >= 3;
     // For cuisine searches, structured OSM tags are more reliable than name-only
     // geocoding. If Overpass is unavailable, keep trying the Nominatim fallback.
     if (intent.cuisine && !enoughLocalCoverage) {
@@ -849,7 +963,7 @@ export default async function handler(req, res) {
 
     // Search for the actual cuisine category, not a long natural-language phrase.
     const namesToFind = intent.cuisine ? [intent.cuisine.key + ' restaurant'] : intent.exactQueries;
-    for (const candidate of enoughLocalCoverage ? [] : namesToFind) {
+    for (const candidate of merged.length >= 15 ? [] : namesToFind) {
       try {
         const found = await searchNominatim(candidate, viewbox, language);
         providerSucceeded = true;
@@ -934,10 +1048,15 @@ export default async function handler(req, res) {
       discoveryProviders: matchedQueries.filter(value => /^OpenStreetMap cuisine:|^Google Places:/.test(value)),
       supplementalPlacesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY),
       localDirectoryCount: localCandidates.length,
+      overtureIndexConfigured: overtureIndexUsed,
+      overtureMatches: overtureResults,
       coverage: 'OpenStreetMap listings may be incomplete. A missing result does not establish that no business exists.',
-      attribution: 'Place data © OpenStreetMap contributors.' +
-        (googlePlacesUsed ? ' Google Places results © Google.' : '') +
-        ' Photos, when available, © Wikimedia Commons contributors.'
+      attribution: (overtureResults ? 'Place data © Overture Maps Foundation and data providers. ' : '') +
+        (matchedQueries.some(value => /OpenStreetMap cuisine:|restaurant|food|repair|shop/i.test(value)) ?
+          'OpenStreetMap data © OpenStreetMap contributors. ' : '') +
+        (googlePlacesUsed ? 'Google Places results © Google. ' : '') +
+        (localCandidates.length ? 'Additional public directory references checked by Loop. ' : '') +
+        'Photos, when available, © Wikimedia Commons contributors.'
     });
   } catch (error) {
     console.error('Loop place search error:', error && error.message ? error.message : error);
