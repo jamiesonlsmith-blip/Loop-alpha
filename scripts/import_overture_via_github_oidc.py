@@ -6,6 +6,7 @@ token, the source workflow identity, and every imported record's bounds.
 Requires id-token write permission on a trusted GitHub Actions runner.
 """
 import argparse
+import base64
 import importlib.util
 import json
 import os
@@ -83,6 +84,15 @@ def main():
         raise RuntimeError("Wrong GitHub repository")
     if os.environ.get("GITHUB_REF") != "refs/heads/main":
         raise RuntimeError("Import must run from the main branch")
+    # Diagnostic: inspect only public workflow identity claims; NEVER log the
+    # signed token or the runner's OIDC request bearer secret.
+    token = identity.get()
+    claims_raw = token.split(".")[1]
+    claims = json.loads(base64.urlsafe_b64decode(claims_raw + "=" * (-len(claims_raw) % 4)))
+    safe_fields = ("iss", "aud", "sub", "repository", "repository_id",
+                   "ref", "workflow_ref", "event_name", "runner_environment")
+    print("BROWARD_PUBLIC_IDENTITY_CLAIMS",
+          json.dumps({field: claims.get(field) for field in safe_fields}), flush=True)
     check = edge_request(identity, {"mode": "preflight"})
     if check.get("authenticated") is not True:
         raise RuntimeError("Supabase gateway refused trusted GitHub OIDC identity")
