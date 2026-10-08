@@ -116,12 +116,12 @@ test('uses optional Google Places discovery for cuisine listings missing OSM tag
     if (String(url).includes('places.googleapis.com'))
       return { ok: true, json: async () => ({ places: [
         { id: 'place-1', displayName: { text: 'H & R Grill' },
-          location: { latitude: 26.155, longitude: -80.28 },
+          location: { latitude: 26.155, longitude: -81.28 },
           formattedAddress: '3535 N Pine Island Rd, Sunrise, FL',
           types: ['restaurant','food'],
           googleMapsUri: 'https://maps.google.com/?cid=test' },
         { id: 'place-2', displayName: { text: 'Not a restaurant' },
-          location: { latitude: 26.155, longitude: -80.28 },
+          location: { latitude: 26.155, longitude: -81.28 },
           types: ['church'] }
       ] }) };
     if (String(url).includes('overpass')) return { ok: true, json: async () => ({ elements: [] }) };
