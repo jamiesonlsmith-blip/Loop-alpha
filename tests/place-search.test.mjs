@@ -220,3 +220,92 @@ test('source-backed listings are not shown outside their conservative search are
     assert.equal(res.body.items.length,0);
   } finally { globalThis.fetch=originalFetch; }
 });
+
+
+test('search prefers the Overture / Loop database before external providers', async () => {
+  const savedFetch = globalThis.fetch;
+  const oldUrl = process.env.SUPABASE_URL;
+  const oldKey = process.env.SUPABASE_SECRET_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SECRET_KEY = 'test-only-key';
+  const called = [];
+  globalThis.fetch = async (url, options = {}) => {
+    called.push(String(url));
+    if (String(url).includes('/rpc/loop_search_index')) {
+      const body = JSON.parse(options.body);
+      assert.ok(body.in_terms.includes('italian'));
+      assert.equal(body.in_radius_miles, 30);
+      assert.equal(options.headers.Authorization, 'Bearer test-only-key');
+      return { ok: true, json: async () => [{
+        overture_id: 'overture-test-id',
+        name: 'Trattoria Test',
+        taxonomy_primary: 'italian_restaurant',
+        basic_category: 'restaurant',
+        taxonomy_hierarchy: ['dining', 'restaurant', 'italian_restaurant'],
+        full_address: 'Test Street',
+        locality: 'Sunrise', region: 'FL', country: 'US',
+        latitude: 26.155, longitude: -80.28, source_release: 'test-release',
+        confidence: 0.94
+      }] };
+    }
+    if (String(url).includes('overpass'))
+      return { ok: true, json: async () => ({ elements: [] }) };
+    return { ok: true, json: async () => [] };
+  };
+  try {
+    const res = { statusCode: 200, setHeader() {},
+      status(code) { this.statusCode = code; return this; },
+      json(data) { this.body = data; return this; } };
+    await handler({ method: 'GET', query: {
+      q: 'Italian food', lat: '26.155', lon: '-80.28',
+      category: 'restaurants', scope: 'local', baseRadius: '30'
+    }, headers: {} }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.overtureIndexConfigured, true);
+    assert.equal(res.body.overtureMatches, 1);
+    assert.equal(res.body.items[0].loop_name, 'Trattoria Test');
+    assert.equal(res.body.items[0].place_id, 'overture:overture-test-id');
+    assert.equal(res.body.items[0].loop_match_type, 'direct');
+    assert.ok(called[0].includes('/rpc/loop_search_index'));
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (oldUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = oldUrl;
+    if (oldKey === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = oldKey;
+  }
+});
+
+test('a failing Overture index retains the existing live-provider fallback', async () => {
+  const savedFetch = globalThis.fetch, oldUrl = process.env.SUPABASE_URL,
+    oldKey = process.env.SUPABASE_SECRET_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SECRET_KEY = 'test-only-key';
+  globalThis.fetch = async url => {
+    if (String(url).includes('/rpc/loop_search_index'))
+      return { ok: false, status: 503 };
+    if (String(url).includes('overpass'))
+      return { ok: true, json: async () => ({ elements: [
+        { type: 'node', id: 1002, lat: 26.155, lon: -81.28,
+          tags: { amenity: 'restaurant', name: 'Fallback Italian', cuisine: 'italian' } }
+      ] }) };
+    return { ok: true, json: async () => [] };
+  };
+  try {
+    const res = { statusCode: 200, setHeader() {},
+      status(code) { this.statusCode = code; return this; },
+      json(data) { this.body = data; return this; } };
+    await handler({ method:'GET', query: {
+      q:'Italian food',lat:'26.155',lon:'-81.28',
+      category:'restaurants',scope:'local',baseRadius:'30'
+    },headers:{} },res);
+    assert.equal(res.statusCode, 200);
+    assert.ok(res.body.items.some(p => p.loop_name === 'Fallback Italian'));
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (oldUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = oldUrl;
+    if (oldKey === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = oldKey;
+  }
+});
