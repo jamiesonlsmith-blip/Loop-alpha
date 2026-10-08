@@ -161,6 +161,43 @@ const CUISINE_VOCABULARY = [
     osmCuisine: 'caribbean', osmName: 'caribbean' }
 ];
 
+
+// Source-checked, small initial directory: helps when public OSM lacks cuisine tags.
+// A city centroid is NOT the physical coordinate of these businesses.
+const LOCAL_LISTINGS = [
+  { id:'hr-grill', name:'H & R Grill', number:'3535', street:'N Pine Island Rd', city:'Sunrise', state:'FL', postal:'33351', cuisine:'haitian', source:'https://hrbesthaitianrestaurant.com/' },
+  { id:'choublak', name:'Choublak Restaurant', number:'2768', street:'N University Dr', city:'Sunrise', state:'FL', postal:'33322', cuisine:'haitian', source:'https://www.restaurantji.com/fl/sunrise/choublak-restaurant-/' },
+  { id:'jj-gourmet', name:'J J Gourmet', number:'6937', street:'Sunset Strip', city:'Sunrise', state:'FL', postal:'33313', cuisine:'haitian', source:'https://find-open.com/sunrise/haitian-restaurants' },
+  { id:'bistro-creole', name:'Bistro Creole', number:'6130', street:'W Oakland Park Blvd', city:'Sunrise', state:'FL', postal:'33313', cuisine:'haitian', source:'https://www.restaurantji.com/fl/sunrise/bistro-creole-/' }
+];
+const LOCAL_AREAS = {
+  Sunrise: { lat:26.160, lon:-80.290, uncertaintyMiles:8 }
+};
+function sourceBackedLocalCandidates(intent, lat, lon, radiusMiles) {
+  if (!intent.cuisine) return [];
+  return LOCAL_LISTINGS.filter(entry => {
+    const area = LOCAL_AREAS[entry.city];
+    // A conservative radius test: include only if even the far edge of the city
+    // area is within the requested search distance.
+    return area && entry.cuisine === intent.cuisine.key &&
+      milesBetween(lat, lon, area.lat, area.lon) + area.uncertaintyMiles <= radiusMiles;
+  }).map(entry => {
+    const area = LOCAL_AREAS[entry.city];
+    return {
+      place_id:'loop-source:' + entry.id, name:entry.name,
+      type:'restaurant', category:'amenity',
+      lat:area.lat, lon:area.lon,
+      address:{house_number:entry.number,road:entry.street,city:entry.city,
+        state:entry.state,postcode:entry.postal,country:'United States',country_code:'us'},
+      display_name:[entry.name,entry.number+' '+entry.street,entry.city,entry.state,entry.postal].join(', '),
+      extratags:{cuisine:entry.cuisine}, namedetails:{name:entry.name},
+      loop_discovery_provider:'loop-curated',
+      loop_geo_precision:'city', loop_uncertainty_miles:area.uncertaintyMiles,
+      loop_listing_source_url:entry.source
+    };
+  });
+}
+
 function cuisineQueryNeedsDishVerification(query, cuisineKey) {
   return cuisineKey === 'haitian' && /\b(griot|pikliz)\b/i.test(query) ||
     cuisineKey === 'italian' && /\bpasta\b/i.test(query) ||
@@ -704,6 +741,7 @@ function enrichItem(item, query, category, lat, lon, matchType, matchNote = '') 
   const itemLat = Number(item.lat);
   const itemLon = Number(item.lon);
   const distanceMiles = milesBetween(lat, lon, itemLat, itemLon);
+  const cityLevelLocation = item.loop_geo_precision === 'city';
   const loopName = placeNameFor(item);
   const loopAddress = internationalAddressFor(item, loopName);
   const loopCategory = categoryPresentation(item, query, category, matchType);
@@ -721,7 +759,7 @@ function enrichItem(item, query, category, lat, lon, matchType, matchNote = '') 
     loop_category_icon: loopCategory.icon,
     loop_match_type: matchType,
     loop_match_note: matchNote,
-    loop_distance_miles: Math.round(distanceMiles * 10) / 10,
+    loop_distance_miles: cityLevelLocation ? null : Math.round(distanceMiles * 10) / 10,
     loop_relevance: relevanceScore(item, query, matchType)
   };
 }
@@ -760,8 +798,9 @@ export default async function handler(req, res) {
     let googlePlacesUsed = false;
     const addMatchedItem = item => {
       const itemLat = Number(item.lat), itemLon = Number(item.lon);
-      if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon) ||
-          milesBetween(lat, lon, itemLat, itemLon) > radiusMiles) return;
+      if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon)) return;
+      const uncertainty = item.loop_geo_precision === 'city' ? Number(item.loop_uncertainty_miles) || 0 : 0;
+      if (milesBetween(lat, lon, itemLat, itemLon) + uncertainty > radiusMiles) return;
       const isPlacesSuggestion = item.loop_discovery_provider === 'google-places';
       const matchType = isPlacesSuggestion && intent.cuisine
         ? (cuisineMatchType(item, intent, query) || 'related')
@@ -774,8 +813,10 @@ export default async function handler(req, res) {
       const key = resultKey(item);
       if (seen.has(key)) return;
       seen.add(key);
-      const note = isPlacesSuggestion
-        ? 'Places search suggestion · Confirm cuisine and current menu'
+      const note = item.loop_discovery_provider === 'loop-curated'
+        ? 'Source-backed local listing · Check current hours before visiting'
+        : isPlacesSuggestion
+          ? 'Places search suggestion · Confirm cuisine and current menu'
         : matchType === 'related' ? intent.relatedNote :
           (intent.cuisine ? 'Cuisine listed in place data · Verify current menu' : '');
       merged.push(enrichItem(item, query, category, lat, lon, matchType, note));
@@ -783,9 +824,19 @@ export default async function handler(req, res) {
       else relatedCount++;
     };
 
+    // Local source-backed listings do not depend on the OSM cuisine index.
+    const localCandidates = sourceBackedLocalCandidates(intent, lat, lon, radiusMiles);
+    localCandidates.forEach(addMatchedItem);
+    if (localCandidates.length) {
+      providerSucceeded = true;
+      matchedQueries.push('Loop source-backed local directory');
+    }
+    // Return a useful starter set immediately where coverage is established;
+    // remote lookups remain available for other searches and regions.
+    const enoughLocalCoverage = localCandidates.length >= 3;
     // For cuisine searches, structured OSM tags are more reliable than name-only
     // geocoding. If Overpass is unavailable, keep trying the Nominatim fallback.
-    if (intent.cuisine) {
+    if (intent.cuisine && !enoughLocalCoverage) {
       try {
         const found = await searchCuisineOverpass(intent, lat, lon, radiusMiles);
         providerSucceeded = true;
@@ -798,7 +849,7 @@ export default async function handler(req, res) {
 
     // Search for the actual cuisine category, not a long natural-language phrase.
     const namesToFind = intent.cuisine ? [intent.cuisine.key + ' restaurant'] : intent.exactQueries;
-    for (const candidate of namesToFind) {
+    for (const candidate of enoughLocalCoverage ? [] : namesToFind) {
       try {
         const found = await searchNominatim(candidate, viewbox, language);
         providerSucceeded = true;
@@ -810,7 +861,7 @@ export default async function handler(req, res) {
     }
     // If the OSM index is sparse, enrich from an independently maintained
     // restaurant index when the project has explicitly configured its API key.
-    if (intent.cuisine && directCount < 6) {
+    if (intent.cuisine && directCount < 6 && !enoughLocalCoverage) {
       try {
         const places = await searchCuisineGooglePlaces(intent, lat, lon, radiusMiles);
         if (places.enabled) {
@@ -882,6 +933,7 @@ export default async function handler(req, res) {
       items,
       discoveryProviders: matchedQueries.filter(value => /^OpenStreetMap cuisine:|^Google Places:/.test(value)),
       supplementalPlacesConfigured: Boolean(process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY),
+      localDirectoryCount: localCandidates.length,
       coverage: 'OpenStreetMap listings may be incomplete. A missing result does not establish that no business exists.',
       attribution: 'Place data © OpenStreetMap contributors.' +
         (googlePlacesUsed ? ' Google Places results © Google.' : '') +
