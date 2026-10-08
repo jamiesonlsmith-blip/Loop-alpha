@@ -29,9 +29,11 @@
   .topbar{max-width:760px;margin:0 auto 12px;display:flex;align-items:center;justify-content:space-between;gap:12px}
   .back{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#ecf6ef;font-weight:850;background:#ffffff10;border:1px solid #ffffff18;border-radius:999px;padding:9px 13px}
   .brand{display:flex;align-items:center;gap:8px;font-weight:950;letter-spacing:-.4px}
-  .mini-logo{width:24px;height:18px;position:relative;display:inline-block}
-  .mini-logo:before,.mini-logo:after{content:"";position:absolute;top:2px;width:14px;height:14px;border:3px solid #8fe2ad;border-radius:50%}
-  .mini-logo:before{left:0}.mini-logo:after{right:0}
+  .mini-logo{position:relative;overflow:hidden;width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#159555,#075f38);display:block;flex:0 0 auto;box-shadow:inset 0 0 0 1px #ffffff24}
+.mini-logo .ring-a,.mini-logo .ring-b{position:absolute;border:3px solid #ffd54f;border-radius:50%;width:17px;height:17px;top:7px}
+.mini-logo .ring-a{left:6px}.mini-logo .ring-b{right:5px;top:11px}
+.mini-logo .ring-a:after{content:"";position:absolute;width:6px;height:5px;border-left:3px solid #ffd54f;transform:rotate(25deg);left:-2px;bottom:-3px}
+.mini-logo .ring-b:after{content:"";position:absolute;width:6px;height:5px;border-right:3px solid #ffd54f;transform:rotate(-25deg);right:-2px;bottom:-3px}
   .page{max-width:760px;margin:0 auto;display:grid;place-items:center}
   .phone{width:min(100%,430px);background:linear-gradient(145deg,#303a36,#1d2522 58%,#121816);border:2px solid #3b4742;border-bottom-color:#070a08;border-radius:46px 46px 68px 68px;padding:22px 22px 30px;box-shadow:0 30px 80px #0008,inset 0 1px 0 #ffffff18}
   .speaker{width:82px;height:8px;border-radius:99px;background:#0a0e0c;margin:0 auto 14px;box-shadow:inset 0 1px 2px #000}
@@ -75,7 +77,7 @@
 <body>
   <div class="topbar">
     <a class="back" href="/games/" aria-label="Back to Loop Mini Games">← Mini Games</a>
-    <div class="brand"><span class="mini-logo" aria-hidden="true"></span>Loop Arcade</div>
+    <div class="brand"><span class="mini-logo" aria-hidden="true"><span class="ring-a"></span><span class="ring-b"></span></span>Loop Arcade</div>
   </div>
 
   <main class="page">
