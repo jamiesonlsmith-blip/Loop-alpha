@@ -75,3 +75,105 @@ test('API returns tagged Haitian restaurants even if Nominatim returns nothing',
     globalThis.fetch = savedFetch;
   }
 });
+
+
+test('tries a second OSM index when the primary Overpass endpoint is down', async () => {
+  const savedFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => {
+    urls.push(String(url));
+    if (String(url).includes('overpass-api.de')) return { ok: false, status: 503 };
+    if (String(url).includes('overpass.kumi.systems'))
+      return { ok: true, json: async () => ({ elements: [
+        { type: 'node', id: 300, lat: 26.155, lon: -80.28,
+          tags: { amenity: 'restaurant', name: 'Haitian Café', cuisine: 'haitian' } }
+      ] }) };
+    return { ok: true, json: async () => [] };
+  };
+  try {
+    const res = { statusCode: 200, setHeader() {},
+      status(code) { this.statusCode = code; return this; },
+      json(data) { this.body = data; return this; } };
+    await handler({ method: 'GET', query: {
+      q: 'Haitian food', lat: '26.155', lon: '-80.28',
+      category: 'restaurants', scope: 'local', baseRadius: '30'
+    }, headers: {} }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.directCount, 1);
+    assert.ok(urls.some(url => url.includes('overpass.kumi.systems')));
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
+});
+
+test('uses optional Google Places discovery for cuisine listings missing OSM tags', async () => {
+  const savedFetch = globalThis.fetch;
+  const savedKey = process.env.GOOGLE_PLACES_API_KEY;
+  process.env.GOOGLE_PLACES_API_KEY = 'test-only-placeholder';
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).includes('places.googleapis.com'))
+      return { ok: true, json: async () => ({ places: [
+        { id: 'place-1', displayName: { text: 'H & R Grill' },
+          location: { latitude: 26.155, longitude: -80.28 },
+          formattedAddress: '3535 N Pine Island Rd, Sunrise, FL',
+          types: ['restaurant','food'],
+          googleMapsUri: 'https://maps.google.com/?cid=test' },
+        { id: 'place-2', displayName: { text: 'Not a restaurant' },
+          location: { latitude: 26.155, longitude: -80.28 },
+          types: ['church'] }
+      ] }) };
+    if (String(url).includes('overpass')) return { ok: true, json: async () => ({ elements: [] }) };
+    return { ok: true, json: async () => [] };
+  };
+  try {
+    const res = { statusCode: 200, headers: {}, setHeader(key,value) { this.headers[key]=value; },
+      status(code) { this.statusCode = code; return this; },
+      json(data) { this.body = data; return this; } };
+    await handler({ method: 'GET', query: {
+      q: 'Haitian food', lat: '26.155', lon: '-80.28',
+      category: 'restaurants', scope: 'local', baseRadius: '30'
+    }, headers: {} }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.items.length, 1);
+    assert.equal(res.body.relatedCount, 1);
+    assert.equal(res.body.items[0].loop_name, 'H & R Grill');
+    assert.match(res.body.items[0].loop_match_note, /Confirm cuisine/);
+    assert.match(res.body.attribution, /Google/);
+    assert.equal(res.body.supplementalPlacesConfigured, true);
+    assert.ok(calls.some(call => call.url.includes('places.googleapis.com')));
+    const request = calls.find(call => call.url.includes('places.googleapis.com'));
+    assert.equal(request.options.headers['X-Goog-Api-Key'], 'test-only-placeholder');
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (savedKey === undefined) delete process.env.GOOGLE_PLACES_API_KEY;
+    else process.env.GOOGLE_PLACES_API_KEY = savedKey;
+  }
+});
+
+test('unavailable search providers cannot masquerade as zero matching restaurants', async () => {
+  const savedFetch = globalThis.fetch;
+  const savedGoogle = process.env.GOOGLE_PLACES_API_KEY;
+  const savedMaps = process.env.GOOGLE_MAPS_API_KEY;
+  delete process.env.GOOGLE_PLACES_API_KEY;
+  delete process.env.GOOGLE_MAPS_API_KEY;
+  globalThis.fetch = async () => { throw new Error('upstream unavailable'); };
+  try {
+    const res = { statusCode: 200, setHeader() {},
+      status(code) { this.statusCode = code; return this; },
+      json(data) { this.body = data; return this; } };
+    await handler({ method: 'GET', query: {
+      q: 'Haitian food', lat: '26.155', lon: '-80.28',
+      category: 'restaurants', scope: 'local', baseRadius: '30'
+    }, headers: {} }, res);
+    assert.equal(res.statusCode, 502);
+    assert.match(res.body.error, /temporarily unavailable/i);
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (savedGoogle === undefined) delete process.env.GOOGLE_PLACES_API_KEY;
+    else process.env.GOOGLE_PLACES_API_KEY = savedGoogle;
+    if (savedMaps === undefined) delete process.env.GOOGLE_MAPS_API_KEY;
+    else process.env.GOOGLE_MAPS_API_KEY = savedMaps;
+  }
+});
