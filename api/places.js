@@ -5,7 +5,11 @@ const SEARCH_SCOPES = {
   local: { extraMiles: 0, label: 'current Loop', next: 'expanded' },
   expanded: { extraMiles: 10, label: 'expanded Loop', next: 'broad' },
   broad: { extraMiles: 20, label: 'wider Loop', next: 'extended' },
-  extended: { extraMiles: 30, label: 'extended Loop', next: null }
+  extended: { extraMiles: 30, label: 'extended Loop', next: 'range70' },
+  range70: { extraMiles: 40, label: 'extended Loop', next: 'range80' },
+  range80: { extraMiles: 50, label: 'extended Loop', next: 'range90' },
+  range90: { extraMiles: 60, label: 'extended Loop', next: 'range100' },
+  range100: { extraMiles: 70, label: 'extended Loop', next: null }
 };
 const DEFAULT_BASE_RADIUS_MILES = 30;
 const MAX_BASE_RADIUS_MILES = 100;
@@ -641,8 +645,8 @@ export default async function handler(req, res) {
       scopeLabel: scope.label,
       baseRadiusMiles,
       radiusMiles,
-      canExpand: Boolean(scope.next),
-      nextScope: scope.next,
+      canExpand: Boolean(scope.next && radiusMiles < MAX_BASE_RADIUS_MILES),
+      nextScope: radiusMiles < MAX_BASE_RADIUS_MILES ? scope.next : null,
       strictIntent: hardIntentGroups(query).length > 0,
       intentKey: intent.key,
       directCount,
