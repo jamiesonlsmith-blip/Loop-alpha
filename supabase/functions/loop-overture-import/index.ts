@@ -102,9 +102,10 @@ Deno.serve(async (request: Request) => {
     if (Number(request.headers.get("content-length") || "0") > 240000)
       return fail("Import batch too large", 413);
     const body = await request.json();
-    if (!body || !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 200)
-      return fail("Only batches of 1-200 places are supported", 400);
-    const safeRows = body.items.map((item: unknown) => {
+    if (!body || (body.mode !== "preflight" &&
+      (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 200)))
+      return fail("Only preflight or batches of 1-200 places are supported", 400);
+    const safeRows = body.mode === "preflight" ? [] : body.items.map((item: unknown) => {
       if (!item || typeof item !== "object" || Array.isArray(item))
         throw new Error("Place must be an object");
       return cleanRow(item as Record<string, unknown>);
@@ -118,6 +119,9 @@ Deno.serve(async (request: Request) => {
     if (!Number.isFinite(databaseBytes)) return fail("Invalid storage check", 503);
     if (databaseBytes >= MAX_DATABASE_BYTES)
       return fail("Database safety limit reached (360 MiB)", 507);
+    if (body.mode === "preflight")
+      return Response.json({ authenticated: true, databaseBytes, maxDatabaseBytes: MAX_DATABASE_BYTES },
+        { headers: { "Cache-Control": "no-store" } });
     const response = await fetch(base + "/rest/v1/loop_place_index?on_conflict=overture_id", {
       method: "POST",
       headers: {
