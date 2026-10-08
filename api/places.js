@@ -2,10 +2,17 @@ const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
 
 const SEARCH_SCOPES = {
-  local: { maxMiles: 8, dLat: 0.12, dLon: 0.15, label: 'current Loop', next: 'expanded' },
-  expanded: { maxMiles: 22, dLat: 0.32, dLon: 0.38, label: 'expanded Loop', next: 'broad' },
-  broad: { maxMiles: 45, dLat: 0.65, dLon: 0.78, label: 'wider area', next: null }
+  local: { extraMiles: 0, label: 'current Loop', next: 'expanded' },
+  expanded: { extraMiles: 10, label: 'expanded Loop', next: 'broad' },
+  broad: { extraMiles: 20, label: 'wider Loop', next: 'extended' },
+  extended: { extraMiles: 30, label: 'extended Loop', next: 'range70' },
+  range70: { extraMiles: 40, label: 'extended Loop', next: 'range80' },
+  range80: { extraMiles: 50, label: 'extended Loop', next: 'range90' },
+  range90: { extraMiles: 60, label: 'extended Loop', next: 'range100' },
+  range100: { extraMiles: 70, label: 'extended Loop', next: null }
 };
+const DEFAULT_BASE_RADIUS_MILES = 30;
+const MAX_BASE_RADIUS_MILES = 100;
 
 function normalize(value = '') {
   return String(value).trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 120);
@@ -239,6 +246,24 @@ function passesRelatedIntent(item, intent) {
   if ((intent.relatedTypes || []).includes(type) || (intent.relatedTypes || []).includes(category)) return true;
   const text = itemSearchText(item);
   return intent.relatedPattern ? intent.relatedPattern.test(text) : false;
+}
+
+function clampBaseRadius(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_BASE_RADIUS_MILES;
+  return Math.max(DEFAULT_BASE_RADIUS_MILES, Math.min(MAX_BASE_RADIUS_MILES, Math.round(parsed)));
+}
+
+function searchRadiusFor(scopeKey, baseRadius) {
+  const scope = SEARCH_SCOPES[scopeKey] || SEARCH_SCOPES.local;
+  return Math.min(MAX_BASE_RADIUS_MILES, clampBaseRadius(baseRadius) + scope.extraMiles);
+}
+
+function viewboxForRadius(lat, lon, radiusMiles) {
+  const latDelta = radiusMiles / 69.0;
+  const cosLat = Math.max(0.2, Math.cos(lat * Math.PI / 180));
+  const lonDelta = Math.min(180, radiusMiles / (69.172 * cosLat));
+  return [lon - lonDelta, lat + latDelta, lon + lonDelta, lat - latDelta].join(',');
 }
 
 function milesBetween(lat1, lon1, lat2, lon2) {
@@ -528,6 +553,8 @@ export default async function handler(req, res) {
   const lon = Number(req.query.lon);
   const scopeKey = SEARCH_SCOPES[req.query.scope] ? req.query.scope : 'local';
   const scope = SEARCH_SCOPES[scopeKey];
+  const baseRadiusMiles = clampBaseRadius(req.query.baseRadius);
+  const radiusMiles = searchRadiusFor(scopeKey, baseRadiusMiles);
   const language = cleanText(req.headers['accept-language'] || 'en-US,en;q=0.9').slice(0, 100);
 
   if (!intent.exactQueries.length || !Number.isFinite(lat) || !Number.isFinite(lon) ||
@@ -535,7 +562,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'A search term and valid location are required.' });
   }
 
-  const viewbox = [lon - scope.dLon, lat + scope.dLat, lon + scope.dLon, lat - scope.dLat].join(',');
+  const viewbox = viewboxForRadius(lat, lon, radiusMiles);
 
   try {
     const merged = [];
@@ -554,7 +581,7 @@ export default async function handler(req, res) {
         if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon)) continue;
 
         const distanceMiles = milesBetween(lat, lon, itemLat, itemLon);
-        if (distanceMiles > scope.maxMiles) continue;
+        if (distanceMiles > radiusMiles) continue;
 
         const strictGroups = hardIntentGroups(query);
         const literalMatch = passesIntent(item, query);
@@ -587,7 +614,7 @@ export default async function handler(req, res) {
           if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon)) continue;
 
           const distanceMiles = milesBetween(lat, lon, itemLat, itemLon);
-          if (distanceMiles > scope.maxMiles || !passesRelatedIntent(item, intent)) continue;
+          if (distanceMiles > radiusMiles || !passesRelatedIntent(item, intent)) continue;
 
           const key = resultKey(item);
           if (seen.has(key)) continue;
@@ -616,8 +643,10 @@ export default async function handler(req, res) {
       matchedQueries,
       scope: scopeKey,
       scopeLabel: scope.label,
-      canExpand: Boolean(scope.next),
-      nextScope: scope.next,
+      baseRadiusMiles,
+      radiusMiles,
+      canExpand: Boolean(scope.next && radiusMiles < MAX_BASE_RADIUS_MILES),
+      nextScope: radiusMiles < MAX_BASE_RADIUS_MILES ? scope.next : null,
       strictIntent: hardIntentGroups(query).length > 0,
       intentKey: intent.key,
       directCount,

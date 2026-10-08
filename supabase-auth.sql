@@ -9,7 +9,8 @@ create table if not exists public.profiles (
   work_title text,
   tastes text,
   avatar_url text,
-  reputation_score numeric not null default 0,
+  reputation_score numeric not null default 0 check (reputation_score between 0 and 10),
+  home_loop_radius_miles integer not null default 30 check (home_loop_radius_miles between 30 and 100),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
