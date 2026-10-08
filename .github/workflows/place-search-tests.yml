@@ -4,12 +4,16 @@ on:
     paths:
       - 'api/places.js'
       - 'tests/place-search.test.mjs'
+      - 'scripts/import_overture_places.py'
+      - 'tests/test_overture_import.py'
       - '.github/workflows/place-search-tests.yml'
   push:
     branches: [main]
     paths:
       - 'api/places.js'
       - 'tests/place-search.test.mjs'
+      - 'scripts/import_overture_places.py'
+      - 'tests/test_overture_import.py'
 jobs:
   search-tests:
     runs-on: ubuntu-latest
@@ -21,3 +25,8 @@ jobs:
           node-version: '22'
       - name: Test search intent and place lookup
         run: node --test tests/place-search.test.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test Overture importer
+        run: python -m unittest discover -s tests -p 'test_overture_import.py' -v
