@@ -47,9 +47,9 @@ test('API returns tagged Haitian restaurants even if Nominatim returns nothing',
     calls.push(String(url));
     if (String(url).includes('overpass-api.de'))
       return { ok: true, json: async () => ({ elements: [
-        { type: 'node', id: 1200, lat: 26.155, lon: -80.280,
+        { type: 'node', id: 1200, lat: 26.155, lon: -81.280,
           tags: { amenity: 'restaurant', name: 'Creole Test Kitchen', cuisine: 'haitian' } },
-        { type: 'node', id: 1201, lat: 26.155, lon: -80.278,
+        { type: 'node', id: 1201, lat: 26.155, lon: -81.278,
           tags: { amenity: 'restaurant', name: 'Italian Test Kitchen', cuisine: 'italian' } }
       ] }) };
     return { ok: true, json: async () => [] };
@@ -62,7 +62,7 @@ test('API returns tagged Haitian restaurants even if Nominatim returns nothing',
       json(body) { this.body = body; return this; }
     };
     await handler({ method: 'GET', query: {
-      q: 'Haitian food', lat: '26.155', lon: '-80.28',
+      q: 'Haitian food', lat: '26.155', lon: '-81.28',
       category: 'restaurants', scope: 'local', baseRadius: '30'
     }, headers: {} }, res);
     assert.equal(res.statusCode, 200);
@@ -85,7 +85,7 @@ test('tries a second OSM index when the primary Overpass endpoint is down', asyn
     if (String(url).includes('overpass-api.de')) return { ok: false, status: 503 };
     if (String(url).includes('overpass.kumi.systems'))
       return { ok: true, json: async () => ({ elements: [
-        { type: 'node', id: 300, lat: 26.155, lon: -80.28,
+        { type: 'node', id: 300, lat: 26.155, lon: -81.28,
           tags: { amenity: 'restaurant', name: 'Haitian Café', cuisine: 'haitian' } }
       ] }) };
     return { ok: true, json: async () => [] };
@@ -95,7 +95,7 @@ test('tries a second OSM index when the primary Overpass endpoint is down', asyn
       status(code) { this.statusCode = code; return this; },
       json(data) { this.body = data; return this; } };
     await handler({ method: 'GET', query: {
-      q: 'Haitian food', lat: '26.155', lon: '-80.28',
+      q: 'Haitian food', lat: '26.155', lon: '-81.28',
       category: 'restaurants', scope: 'local', baseRadius: '30'
     }, headers: {} }, res);
     assert.equal(res.statusCode, 200);
@@ -132,7 +132,7 @@ test('uses optional Google Places discovery for cuisine listings missing OSM tag
       status(code) { this.statusCode = code; return this; },
       json(data) { this.body = data; return this; } };
     await handler({ method: 'GET', query: {
-      q: 'Haitian food', lat: '26.155', lon: '-80.28',
+      q: 'Haitian food', lat: '26.155', lon: '-81.28',
       category: 'restaurants', scope: 'local', baseRadius: '30'
     }, headers: {} }, res);
     assert.equal(res.statusCode, 200);
@@ -164,7 +164,7 @@ test('unavailable search providers cannot masquerade as zero matching restaurant
       status(code) { this.statusCode = code; return this; },
       json(data) { this.body = data; return this; } };
     await handler({ method: 'GET', query: {
-      q: 'Haitian food', lat: '26.155', lon: '-80.28',
+      q: 'Haitian food', lat: '26.155', lon: '-81.28',
       category: 'restaurants', scope: 'local', baseRadius: '30'
     }, headers: {} }, res);
     assert.equal(res.statusCode, 502);
@@ -176,4 +176,47 @@ test('unavailable search providers cannot masquerade as zero matching restaurant
     if (savedMaps === undefined) delete process.env.GOOGLE_MAPS_API_KEY;
     else process.env.GOOGLE_MAPS_API_KEY = savedMaps;
   }
+});
+
+test('real Sunrise Haitian search returns multiple source-backed businesses even with all providers down', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('all external providers unavailable'); };
+  try {
+    const res = { statusCode: 200, setHeader() {},
+      status(code) { this.statusCode = code; return this; },
+      json(data) { this.body = data; return this; } };
+    await handler({ method: 'GET', query: {
+      q: 'Haitian food', lat: '26.155', lon: '-80.28', category: 'restaurants',
+      scope: 'local', baseRadius: '30'
+    }, headers: {} }, res);
+    assert.equal(res.statusCode, 200);
+    assert.ok(res.body.items.length >= 3, 'at least three independent local listings');
+    assert.equal(res.body.localDirectoryCount, 4);
+    assert.ok(res.body.items.some(item => item.loop_name === 'H & R Grill'));
+    assert.ok(res.body.items.some(item => item.loop_name === 'Choublak Restaurant'));
+    for (const place of res.body.items) {
+      assert.equal(place.loop_geo_precision, 'city');
+      assert.equal(place.loop_distance_miles, null, 'no false exact mileage');
+      assert.match(place.loop_listing_source_url, /^https:\/\//);
+      assert.match(place.loop_match_note, /Source-backed/);
+      assert.match(place.loop_full_address, /Sunrise/);
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('source-backed listings are not shown outside their conservative search area', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok:true, json:async () => [] });
+  try {
+    const res = { statusCode:200, setHeader() {},
+      status(code){this.statusCode=code;return this;},
+      json(data){this.body=data;return this;} };
+    await handler({ method:'GET', query: {
+      q:'Haitian food',lat:'28.0',lon:'-82.0',category:'restaurants',
+      scope:'local',baseRadius:'30'
+    }, headers:{} },res);
+    assert.equal(res.statusCode,200);
+    assert.equal(res.body.localDirectoryCount,0);
+    assert.equal(res.body.items.length,0);
+  } finally { globalThis.fetch=originalFetch; }
 });
