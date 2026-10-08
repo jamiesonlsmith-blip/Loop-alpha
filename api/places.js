@@ -1,4 +1,5 @@
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
 
 const SEARCH_SCOPES = {
@@ -119,8 +120,81 @@ const SEARCH_VOCABULARY = [
   }
 ];
 
+// A phrase describes an intent, not necessarily words found in a venue's name.
+// Keep cuisine aliases separate from geographic/category fallbacks so a Haitian
+// request cannot silently turn into a generic unrelated restaurant result.
+const CUISINE_VOCABULARY = [
+  { key: 'haitian', aliases: /\b(haitian|haiti|kreyol|griot|pikliz)\b/i,
+    cuisine: /\bhaitian\b/i, name: /\bhaitian\b|\bhaiti\b|\bkreyol\b/i,
+    osmCuisine: 'haitian|creole|caribbean', osmName: 'haitian|haiti|kreyol|lakay',
+    relatedCuisine: /\b(creole|caribbean)\b/i, relatedName: /\blakay\b/i,
+    relatedNote: 'Caribbean/Creole option · Haitian dishes not confirmed' },
+  { key: 'jamaican', aliases: /\b(jamaican|jamaica|ackee)\b/i,
+    cuisine: /\bjamaican\b/i, name: /\bjamaican\b|\bjamaica\b/i,
+    osmCuisine: 'jamaican', osmName: 'jamaican|jamaica' },
+  { key: 'italian', aliases: /\b(italian|pasta|trattoria)\b/i,
+    cuisine: /\bitalian\b/i, name: /\bitalian\b|\btrattoria\b/i,
+    osmCuisine: 'italian', osmName: 'italian|trattoria' },
+  { key: 'mexican', aliases: /\b(mexican|taqueria|tacos?)\b/i,
+    cuisine: /\bmexican\b/i, name: /\bmexican\b|\btaqueria\b/i,
+    osmCuisine: 'mexican', osmName: 'mexican|taqueria' },
+  { key: 'indian', aliases: /\b(indian|biryani|tandoori)\b/i,
+    cuisine: /\bindian\b/i, name: /\bindian\b|\btandoori\b/i,
+    osmCuisine: 'indian', osmName: 'indian|tandoori' },
+  { key: 'ethiopian', aliases: /\b(ethiopian|injera)\b/i,
+    cuisine: /\bethiopian\b/i, name: /\bethiopian\b/i,
+    osmCuisine: 'ethiopian', osmName: 'ethiopian' },
+  { key: 'thai', aliases: /\b(thai|pad thai)\b/i,
+    cuisine: /\bthai\b/i, name: /\bthai\b/i,
+    osmCuisine: 'thai', osmName: 'thai' },
+  { key: 'vietnamese', aliases: /\b(vietnamese|pho|banh mi)\b/i,
+    cuisine: /\bvietnamese\b/i, name: /\bvietnamese\b/i,
+    osmCuisine: 'vietnamese', osmName: 'vietnamese' },
+  { key: 'korean', aliases: /\b(korean|bibimbap)\b/i,
+    cuisine: /\bkorean\b/i, name: /\bkorean\b/i,
+    osmCuisine: 'korean', osmName: 'korean' },
+  { key: 'chinese', aliases: /\b(chinese|dim sum)\b/i,
+    cuisine: /\bchinese\b/i, name: /\bchinese\b/i,
+    osmCuisine: 'chinese', osmName: 'chinese' },
+  { key: 'caribbean', aliases: /\b(caribbean|west indian)\b/i,
+    cuisine: /\bcaribbean\b/i, name: /\bcaribbean\b|\bwest indian\b/i,
+    osmCuisine: 'caribbean', osmName: 'caribbean' }
+];
+
+function cuisineQueryNeedsDishVerification(query, cuisineKey) {
+  return cuisineKey === 'haitian' && /\b(griot|pikliz)\b/i.test(query) ||
+    cuisineKey === 'italian' && /\bpasta\b/i.test(query) ||
+    cuisineKey === 'jamaican' && /\backee\b/i.test(query) ||
+    cuisineKey === 'indian' && /\b(biryani|tandoori)\b/i.test(query) ||
+    cuisineKey === 'ethiopian' && /\binjera\b/i.test(query) ||
+    cuisineKey === 'vietnamese' && /\b(pho|banh mi)\b/i.test(query) ||
+    cuisineKey === 'korean' && /\bbibimbap\b/i.test(query) ||
+    cuisineKey === 'chinese' && /\bdim sum\b/i.test(query);
+}
+
+function cuisineMatchType(item, intent, query) {
+  const cuisine = normalize(item.extratags?.cuisine || item.tags?.cuisine || item.cuisine);
+  const name = normalize(item.name || item.namedetails?.name);
+  const direct = intent.cuisine.cuisine.test(cuisine) || intent.cuisine.name.test(name);
+  const related = intent.cuisine.relatedCuisine?.test(cuisine) ||
+    intent.cuisine.relatedName?.test(name);
+  // A cuisine tag does not prove that a specific dish is on the current menu.
+  if (direct && cuisineQueryNeedsDishVerification(query, intent.cuisine.key)) return 'related';
+  if (direct) return 'direct';
+  return related ? 'related' : null;
+}
+
 function searchIntent(value = '', category = '') {
   const q = normalize(value);
+  const cuisine = CUISINE_VOCABULARY.find(item => item.aliases.test(q));
+  if (cuisine) return {
+    key: 'cuisine-' + cuisine.key,
+    cuisine,
+    exactQueries: unique([q, cuisine.key + ' restaurant']),
+    relatedQueries: [],
+    allowRelated: false,
+    relatedNote: cuisine.relatedNote || 'Cuisine-related restaurant · Specific menu items not verified'
+  };
   const vocabulary = SEARCH_VOCABULARY.find(item => item.match.test(q));
   if (vocabulary) {
     return {
@@ -483,6 +557,56 @@ async function addPhotos(items = []) {
   });
 }
 
+// Nominatim geocodes names/addresses; it is not a general cuisine index.
+// Overpass retrieves OSM restaurant objects using structured cuisine tags.
+function overpassItem(element) {
+  const tags = element.tags || {};
+  const lat = element.lat ?? element.center?.lat;
+  const lon = element.lon ?? element.center?.lon;
+  const name = cleanText(tags.name || tags['name:en'] || '');
+  if (!name || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+  const address = {
+    house_number: tags['addr:housenumber'] || '',
+    road: tags['addr:street'] || '',
+    city: tags['addr:city'] || '',
+    town: tags['addr:town'] || '',
+    state: tags['addr:state'] || '',
+    postcode: tags['addr:postcode'] || '',
+    country: tags['addr:country'] || ''
+  };
+  const addressText = [address.house_number, address.road, address.city, address.state].filter(Boolean).join(' ');
+  return {
+    osm_type: element.type,
+    osm_id: element.id,
+    lat, lon,
+    name,
+    display_name: [name, addressText].filter(Boolean).join(', '),
+    type: tags.amenity || 'restaurant',
+    category: 'amenity',
+    address,
+    extratags: tags,
+    namedetails: { name }
+  };
+}
+
+async function searchCuisineOverpass(intent, lat, lon, radiusMiles) {
+  if (!intent.cuisine) return [];
+  const metres = Math.ceil(radiusMiles * 1609.344);
+  const around = `(around:${metres},${lat},${lon})`;
+  const cuisine = intent.cuisine;
+  // Both regex patterns are fixed, allowlisted vocabulary values, never raw user input.
+  const query = `[out:json][timeout:12];(nwr${around}["amenity"~"^(restaurant|fast_food|cafe)$"]["cuisine"~"${cuisine.osmCuisine}",i];nwr${around}["amenity"~"^(restaurant|fast_food|cafe)$"]["name"~"${cuisine.osmName}",i];);out center 80;`;
+  const response = await fetch(OVERPASS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+    body: new URLSearchParams({ data: query }),
+    signal: AbortSignal.timeout(8500)
+  });
+  if (!response.ok) throw new Error('Overpass HTTP ' + response.status);
+  const json = await response.json();
+  return Array.isArray(json.elements) ? json.elements.map(overpassItem).filter(Boolean) : [];
+}
+
 async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
   const params = new URLSearchParams({
     format: 'jsonv2',
@@ -511,7 +635,8 @@ async function searchNominatim(query, viewbox, language = 'en-US,en;q=0.9') {
 }
 
 function resultKey(item = {}) {
-  return String(item.place_id || item.osm_id || item.display_name || [item.lat,item.lon,item.type].join('|'));
+  if (item.osm_type && item.osm_id) return item.osm_type + ':' + item.osm_id;
+  return String(item.place_id || item.display_name || [item.lat,item.lon,item.type].join('|'));
 }
 
 function enrichItem(item, query, category, lat, lon, matchType, matchNote = '') {
@@ -570,35 +695,52 @@ export default async function handler(req, res) {
     const matchedQueries = [];
     let directCount = 0;
     let relatedCount = 0;
+    let providerSucceeded = false;
+    const addMatchedItem = item => {
+      const itemLat = Number(item.lat), itemLon = Number(item.lon);
+      if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon) ||
+          milesBetween(lat, lon, itemLat, itemLon) > radiusMiles) return;
+      const matchType = intent.cuisine
+        ? cuisineMatchType(item, intent, query)
+        : (hardIntentGroups(query).length && !passesIntent(item, query)
+            ? (intent.key !== 'general' && passesRelatedIntent(item, intent) ? 'related' : null)
+            : 'direct');
+      if (!matchType) return;
+      const key = resultKey(item);
+      if (seen.has(key)) return;
+      seen.add(key);
+      const note = matchType === 'related' ? intent.relatedNote :
+        (intent.cuisine ? 'Cuisine listed in place data · Verify current menu' : '');
+      merged.push(enrichItem(item, query, category, lat, lon, matchType, note));
+      if (matchType === 'direct') directCount++;
+      else relatedCount++;
+    };
 
-    for (const candidate of intent.exactQueries) {
-      const found = await searchNominatim(candidate, viewbox, language);
-      matchedQueries.push(candidate);
-
-      for (const item of found) {
-        const itemLat = Number(item.lat);
-        const itemLon = Number(item.lon);
-        if (!Number.isFinite(itemLat) || !Number.isFinite(itemLon)) continue;
-
-        const distanceMiles = milesBetween(lat, lon, itemLat, itemLon);
-        if (distanceMiles > radiusMiles) continue;
-
-        const strictGroups = hardIntentGroups(query);
-        const literalMatch = passesIntent(item, query);
-        const providerRelated = intent.key !== 'general' && passesRelatedIntent(item, intent);
-        if (strictGroups.length && !literalMatch && !providerRelated) continue;
-
-        const key = resultKey(item);
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        const matchType = strictGroups.length && !literalMatch ? 'related' : 'direct';
-        const note = matchType === 'related' ? intent.relatedNote : '';
-        merged.push(enrichItem(item, query, category, lat, lon, matchType, note));
-        if (matchType === 'direct') directCount++;
-        else relatedCount++;
+    // For cuisine searches, structured OSM tags are more reliable than name-only
+    // geocoding. If Overpass is unavailable, keep trying the Nominatim fallback.
+    if (intent.cuisine) {
+      try {
+        const found = await searchCuisineOverpass(intent, lat, lon, radiusMiles);
+        providerSucceeded = true;
+        matchedQueries.push('OpenStreetMap cuisine: ' + intent.cuisine.key);
+        found.forEach(addMatchedItem);
+      } catch (error) {
+        console.warn('Loop cuisine lookup unavailable:', error?.message || error);
       }
     }
+
+    const namesToFind = intent.cuisine ? intent.exactQueries.slice(0, 1) : intent.exactQueries;
+    for (const candidate of namesToFind) {
+      try {
+        const found = await searchNominatim(candidate, viewbox, language);
+        providerSucceeded = true;
+        matchedQueries.push(candidate);
+        found.forEach(addMatchedItem);
+      } catch (error) {
+        console.warn('Loop name lookup unavailable:', error?.message || error);
+      }
+    }
+    if (!providerSucceeded) throw new Error('No place-search providers are available');
 
     // If the literal/synonym search is sparse, widen semantically inside the same
     // requested category before widening geography. These are clearly marked as
@@ -652,6 +794,7 @@ export default async function handler(req, res) {
       directCount,
       relatedCount,
       items,
+      coverage: 'OpenStreetMap listings may be incomplete. A missing result does not establish that no business exists.',
       attribution: 'Place data © OpenStreetMap contributors. Photos, when available, © Wikimedia Commons contributors.'
     });
   } catch (error) {
