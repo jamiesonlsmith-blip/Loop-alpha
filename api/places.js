@@ -712,11 +712,11 @@ function overtureTerms(intent, query) {
   if (intent.cuisine) return [intent.cuisine.key];
   const categoryTerms = {
     'restaurant-general': ['restaurant', 'cafe', 'food_court'],
-    'brake-service': ['car_repair', 'auto_repair', 'vehicle_repair'],
-    'body-shop': ['auto_body', 'body_shop', 'collision_repair'],
-    'oil-change': ['oil_change', 'car_repair'],
-    'tire-service': ['tire', 'tyre'],
-    mechanic: ['car_repair', 'auto_repair', 'mechanic'],
+    'brake-service': ['automotive_repair', 'car_repair', 'auto_repair', 'brake'],
+    'body-shop': ['auto_body', 'body_shop', 'collision_repair', 'automotive_repair'],
+    'oil-change': ['oil_change', 'automotive_repair', 'car_repair'],
+    'tire-service': ['tire_shop', 'tyre', 'automotive_repair'],
+    mechanic: ['automotive_repair', 'car_repair', 'auto_repair', 'mechanic'],
     'urgent-care': ['urgent_care', 'walk_in_clinic'],
     dentist: ['dentist', 'dental'],
     electrician: ['electrician'],
@@ -739,7 +739,7 @@ function overtureTerms(intent, query) {
     'fun-center': ['amusement_park', 'entertainment_center'],
     'fun-general': ['arcade', 'bowling', 'amusement_park'],
     parks: ['park'],
-    retail: ['clothing_store', 'shoe_store', 'jewelry_store', 'shop']
+    retail: ['fashion_and_apparel_store', 'clothing_store', 'shoe_store', 'jewelry_store', 'shop']
   };
   return (categoryTerms[intent.key] || meaningfulTokens(query).slice(0, 3))
     .map(value => normalize(value).replace(/[^a-z0-9_ -]/g, ''))
@@ -751,8 +751,14 @@ function overtureItem(row) {
   const lat = Number(row.latitude), lon = Number(row.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   const category = normalize(row.taxonomy_primary || row.basic_category || '');
-  const food = /restaurant|cafe|fast_food|food_court|diner/.test(category);
-  const auto = /vehicle_repair|car_repair|auto_repair|garage|body_shop/.test(category);
+  const basic = normalize(row.basic_category || '');
+  const hierarchy = Array.isArray(row.taxonomy_hierarchy)
+    ? row.taxonomy_hierarchy.map(normalize) : [];
+  const food = hierarchy.some(label => ['restaurant', 'casual_eatery', 'cafe', 'fast_food'].includes(label)) ||
+    /(?:^|_)restaurant$/.test(category) ||
+    ['restaurant', 'casual_eatery', 'cafe', 'coffee_shop', 'fast_food', 'food_court', 'diner'].includes(basic);
+  const auto = [...hierarchy, basic, category].some(label =>
+    /automotive_repair|vehicle_repair|car_repair|auto_repair|garage|body_shop|collision_repair/.test(label));
   const type = food ? 'restaurant' : auto ? 'car_repair' : category;
   const cuisine = food ? category.replace(/_/g, ' ') : '';
   return {
@@ -1065,4 +1071,4 @@ export default async function handler(req, res) {
 }
 
 // Small, side-effect-free exports for search-intent regression tests.
-export { searchIntent, cuisineMatchType, overpassItem, resultKey };
+export { searchIntent, cuisineMatchType, overpassItem, overtureItem, overtureTerms, resultKey };
