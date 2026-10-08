@@ -1,0 +1,59 @@
+name: Broward Overture discovery preflight
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/overture-broward-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-broward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install official Overture client
+        run: python -m pip install overturemaps
+      - name: Download Broward Overture places
+        run: |
+          overturemaps download \
+            --bbox=-80.53,25.94,-80.04,26.42 \
+            --type=place -f geojsonseq \
+            -o overture_broward.geojsonseq
+      - name: Validate official place records and measure safe import
+        run: |
+          python - <<'PY'
+          import importlib.util, collections, hashlib, json
+          from pathlib import Path
+          module = importlib.util.spec_from_file_location(
+              "import_overture_places", "scripts/import_overture_places.py")
+          importer = importlib.util.module_from_spec(module)
+          module.loader.exec_module(importer)
+          catalog = json.loads(__import__('urllib.request',fromlist=['urlopen']).urlopen(
+              'https://stac.overturemaps.org/catalog.json',timeout=20).read())
+          release = str(catalog.get('latest') or 'latest')
+          counts = collections.Counter()
+          accepted = []
+          source = Path('overture_broward.geojsonseq')
+          for p in importer.records(source, importer.REGIONS['broward'], release, .55):
+              counts[(p['basic_category'] or p['taxonomy_primary'] or 'uncategorized')] += 1
+              # Uniform deterministic sampling across stable IDs, preserving categories.
+              rank = hashlib.sha256(p['overture_id'].encode()).hexdigest()
+              accepted.append((rank,p))
+          accepted.sort(key=lambda item:item[0])
+          print('LOOP_BROWARD_RELEASE',release)
+          print('LOOP_BROWARD_ACCEPTED',len(accepted))
+          print('LOOP_BROWARD_TOP_CATEGORIES',json.dumps(counts.most_common(25)))
+          print('LOOP_BROWARD_BYTES',source.stat().st_size)
+          print('LOOP_BROWARD_SUGGESTED_BATCHES_30000', (len(accepted)+29999)//30000)
+          # Public Overture-derived data only: make 100 samples available for
+          # a controlled first database check by an authorized Supabase admin.
+          for _,row in accepted[:100]:
+              print('LOOP_BROWARD_SAMPLE_JSON',json.dumps(row,separators=(',',':')))
+          PY
