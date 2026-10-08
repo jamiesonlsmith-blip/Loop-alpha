@@ -41,7 +41,8 @@ def normalize_feature(feature, bbox, release, min_confidence=0.5):
     if not (bbox[0] <= lon <= bbox[2] and bbox[1] <= lat <= bbox[3]):
         return None
     name = text((props.get("names") or {}).get("primary"), 220)
-    place_id = text(props.get("id"), 100)
+    # Overture GeoJSONSeq places the feature ID at the root (not properties).
+    place_id = text(feature.get("id") or props.get("id"), 100)
     if not name or not place_id:
         return None
     if props.get("operating_status") == "permanently_closed":

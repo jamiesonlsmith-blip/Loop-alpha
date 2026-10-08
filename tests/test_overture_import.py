@@ -44,6 +44,13 @@ class OvertureImporterTest(unittest.TestCase):
         self.assertEqual(row["locality"], "Sunrise")
         self.assertEqual(row["website"], "https://example.com")
 
+    def test_official_geojsonseq_root_id_is_used(self):
+        feature = test_feature()
+        feature["id"] = feature["properties"].pop("id")
+        row = mod.normalize_feature(feature, mod.REGIONS["broward"], "2026-test")
+        self.assertIsNotNone(row)
+        self.assertEqual(row["overture_id"], "test-overture-place-id")
+
     def test_rejects_closed_low_confidence_and_wrong_area(self):
         bbox = mod.REGIONS["broward"]
         self.assertIsNone(mod.normalize_feature(
