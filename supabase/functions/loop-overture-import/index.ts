@@ -36,7 +36,7 @@ async function authorize(request: Request) {
     return payload.repository === REPO &&
       String(payload.repository_id) === REPO_ID &&
       payload.ref === "refs/heads/main" &&
-      payload.sub === "repo:" + REPO + ":ref:refs/heads/main" &&
+      payload.sub === "repo:jamiesonlsmith-blip@333106124/Loop-alpha@1384260467:ref:refs/heads/main" &&
       payload.workflow_ref === WORKFLOW_REF &&
       payload.event_name === "push" &&
       payload.runner_environment === "github-hosted";
