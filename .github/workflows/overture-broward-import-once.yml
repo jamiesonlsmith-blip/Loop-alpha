@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/overture-broward-import-once.yml'
+      - 'scripts/import_overture_via_github_oidc.py'
 
 permissions:
   contents: read
