@@ -43,7 +43,7 @@ jobs:
           source = Path('overture_broward.geojsonseq')
           with source.open('r',encoding='utf-8') as fd:
               for n in range(3):
-                  line = fd.readline().lstrip('\\x1e').strip()
+                  line = fd.readline().lstrip('\x1e').strip()
                   if not line: continue
                   obj = json.loads(line)
                   print('LOOP_GEOJSON_SAMPLE_KEYS',sorted(obj.keys()))
