@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 // Import as ESM without changing the application's deployment/module settings.
 const source = await readFile(new URL('../api/places.js', import.meta.url), 'utf8');
-const { default: handler, searchIntent, cuisineMatchType, overpassItem, resultKey } =
+const { default: handler, searchIntent, cuisineMatchType, overpassItem, overtureItem, overtureTerms, resultKey } =
   await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
 const restaurant = (cuisine, name = 'Test Kitchen') =>
@@ -308,4 +308,34 @@ test('a failing Overture index retains the existing live-provider fallback', asy
     if (oldKey === undefined) delete process.env.SUPABASE_SECRET_KEY;
     else process.env.SUPABASE_SECRET_KEY = oldKey;
   }
+});
+
+
+test('maps September 2026 Overture taxonomy and aliases to actual categories', () => {
+  assert.ok(overtureTerms(searchIntent('brake service','auto'),'brake service')
+    .includes('automotive_repair'));
+  assert.ok(overtureTerms(searchIntent('shopping','retail'),'shopping')
+    .includes('fashion_and_apparel_store'));
+  const auto = overtureItem({
+    overture_id:'test-auto',name:'Independent Repair',
+    basic_category:'automotive_service',taxonomy_primary:'automotive_repair',
+    taxonomy_hierarchy:['services_and_business','automotive_service','automotive_repair'],
+    latitude:26.15,longitude:-80.28,source_release:'2026-09-23.1'
+  });
+  assert.equal(auto.type,'car_repair');
+  const eatery = overtureItem({
+    overture_id:'test-eatery',name:'Test Haitian Eatery',
+    basic_category:'casual_eatery',taxonomy_primary:'casual_eatery',
+    taxonomy_hierarchy:['food_and_drink','restaurant','casual_eatery'],
+    latitude:26.15,longitude:-80.28,source_release:'2026-09-23.1'
+  });
+  assert.equal(eatery.type,'restaurant');
+  assert.equal(cuisineMatchType(eatery,searchIntent('Haitian food','restaurants'),'Haitian food'),'direct');
+  const nonFood = overtureItem({
+    overture_id:'test-charity',name:'Haitian Community Support',
+    basic_category:'charity_organization',taxonomy_primary:'charity_organization',
+    taxonomy_hierarchy:['community_and_government','charity_organization'],
+    latitude:26.15,longitude:-80.28,source_release:'2026-09-23.1'
+  });
+  assert.equal(cuisineMatchType(nonFood,searchIntent('Haitian food','restaurants'),'Haitian food'),null);
 });
