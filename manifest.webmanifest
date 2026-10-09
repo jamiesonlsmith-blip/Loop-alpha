@@ -7,7 +7,7 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#0d1511",
-  "theme_color": "#116b3a",
+  "theme_color": "#0e6543",
   "orientation": "portrait-primary",
   "categories": [
     "social",
@@ -17,19 +17,19 @@
   ],
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/icons/icon-192.png?v=24",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/icon-512.png?v=24",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-maskable-512.png",
+      "src": "/icons/icon-maskable-512.png?v=24",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
