@@ -114,7 +114,7 @@
       const found=requested.match(pattern);
       if(!found)continue;
       const before=requested.slice(Math.max(0,found.index-26),found.index);
-      if(/(?:\bnot\\s+(?:a\\s+|the\\s+|like\\s+)?|\bavoid\\s+|\bexcept\\s+|\bother than\\s+)$/.test(before))
+      if(/(?:\bnot\s+(?:a\s+|the\s+|like\s+)?|\bavoid\s+|\bexcept\s+|\bother than\s+)$/.test(before))
         exclusions.push(name);
     }
     const scored=items.filter(item=>{
