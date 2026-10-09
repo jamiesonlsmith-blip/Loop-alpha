@@ -8,6 +8,7 @@ on:
       - 'index.html'
       - 'sw.js'
       - 'tests/global-map.test.mjs'
+      - 'tests/navigation-back.test.mjs'
       - 'tests/place-search.test.mjs'
       - 'scripts/import_overture_places.py'
       - 'tests/test_overture_import.py'
