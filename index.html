@@ -297,6 +297,7 @@
     @media(prefers-reduced-motion:reduce){.loop-update-banner *{transition:none!important}}
 </style>
 <link rel="stylesheet" href="/community/communities-v1.css">
+<link rel="stylesheet" href="/social/profiles-messages.css">
 </head>
 <body>
   <div id="loopWallpaper" class="loop-wallpaper active" aria-hidden="true"></div>
@@ -360,7 +361,7 @@
 <button class="drawer-link" onclick="showProfile()">
 <span class="mi">☺</span>Profile & Reputation</button>
 <button class="drawer-link" onclick="showMessenger()">
-<span class="mi">▱</span>Messenger</button>
+<span class="mi">▱</span>Messages</button>
 <button class="drawer-link" onclick="showNotifications()">
 <span class="mi">♢</span>Notifications</button>
 <button class="drawer-link" onclick="showSettings()">
@@ -397,9 +398,10 @@
 
 <div class="home-shell loop-home-shell">
 <section class="welcome-panel">
-<div>
+<div class="loop-welcome-first">
 <p id="homeGreetingKicker" class="welcome-kicker">Welcome to</p>
 <h1 id="homeGreetingName">Loop</h1>
+<button type="button" id="loopWelcomeAvatar" class="loop-welcome-avatar" aria-label="Open my profile" onclick="showProfile()" hidden>?</button>
 <p id="homeGreetingCopy">Choose what you need and Loop will help narrow the decision.</p>
 </div>
 <div id="memberHomeBadge" class="member-home-badge" hidden>
@@ -526,7 +528,7 @@
 <p>You can search and explore Loop without creating an account. Create a profile when you want to save places, message people, contribute experiences, build reputation, and keep a Home Loop.</p>
 <div class="guest-benefits">
 <div>♥ Save places and build shortlists</div>
-<div>▱ Use Messenger for recommendation follow-ups</div>
+<div>▱ Send Messages for recommendation follow-ups</div>
 <div>◎ Save a Home Loop and build reputation over time</div>
 </div>
 <button onclick="startProfileSetup()">Create my Loop profile</button>
@@ -566,7 +568,7 @@
 <h2>Profile perks</h2>
 <div class="profile-benefit-list">
 <div><b>Save what matters</b><small>Keep places and recommendations for later.</small></div>
-<div><b>Join the conversation</b><small>Use Messenger and interact with community experiences.</small></div>
+<div><b>Join the conversation</b><small>Use Messages and interact with community experiences.</small></div>
 <div><b>Build reputation</b><small>Your useful firsthand contributions can build trust over time.</small></div>
 </div>
 </section>
@@ -926,7 +928,7 @@
 <span class="nav-icon"><svg class="nav-svg nav-community-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><circle cx="5.5" cy="10" r="2.3"></circle><circle cx="18.5" cy="10" r="2.3"></circle><path d="M7.2 19c.6-3.4 2.4-5.1 4.8-5.1s4.2 1.7 4.8 5.1"></path><path d="M1.8 18c.4-2.5 1.8-3.8 3.7-3.8 1.1 0 2 .4 2.7 1.1"></path><path d="M22.2 18c-.4-2.5-1.8-3.8-3.7-3.8-1.1 0-2 .4-2.7 1.1"></path></svg></span><span>Community</span>
 </button>
 <button id="navMessenger" onclick="showMessenger()">
-<span class="nav-icon"><svg class="nav-svg nav-messenger-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.5h15v10h-9l-4.5 3.5v-3.5H4.5z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg></span><span>Messenger</span>
+<span class="nav-icon"><svg class="nav-svg nav-messenger-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.5h15v10h-9l-4.5 3.5v-3.5H4.5z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg></span><span>Messages</span>
 </button>
 <button id="navYou" onclick="showProfile()">
 <span class="nav-icon">☺</span><span>You</span>
@@ -1288,7 +1290,7 @@
     function showCommunity(){if(!requireProfile('Loop Community'))return;closeMenu();hidePrimaryViews();communityPage.classList.add('active');setLoopWallpaper(true);setActiveNav('navCommunity');renderCommunity();scrollTo(0,0)}
     function showNotifications(){if(!requireProfile('notifications'))return;closeMenu();hidePrimaryViews();activityPage.classList.add('active');setLoopWallpaper(true);setActiveNav(null);scrollTo(0,0)}
     function showActivity(){showNotifications()}
-    function showMessenger(){if(!requireProfile('Messenger'))return;closeMenu();hidePrimaryViews();messengerPage.classList.add('active');setActiveNav('navMessenger');scrollTo(0,0)}
+    function showMessenger(){if(!requireProfile('Messages'))return;closeMenu();hidePrimaryViews();messengerPage.classList.add('active');setActiveNav('navMessenger');scrollTo(0,0)}
     function showProfile(){closeMenu();hidePrimaryViews();applyAccountState();profile.classList.add('active');setActiveNav('navYou');scrollTo(0,0)}
     function showSettings(){closeMenu();hidePrimaryViews();settingsPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}
     function showTrustSafety(){closeMenu();hidePrimaryViews();trustPage.classList.add('active');setActiveNav(null);scrollTo(0,0)}
@@ -1646,7 +1648,7 @@
     function getProfile(){try{return JSON.parse(localStorage.getItem(PROFILE_KEY))||{}}catch{return{}}}
     function initialsFor(name){return String(name||'').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'?'}
     function featureCopy(feature){const map={
-      'Messenger':'Messenger is available to people with a Loop profile so conversations have a real identity behind them.',
+      'Messages':'Messages are private follow-up questions between Loop members, connected to real recommendations.',
       'saved places':'Create a profile to keep places and recommendations saved to your Loop.',
       'save places':'Create a profile to save this place and build your shortlist.',
       'personal activity':'Your personal activity belongs to a Loop profile so replies, reactions, and reputation can stay connected to you.',
@@ -1689,7 +1691,7 @@
       }else{
         member.classList.add('guest-hidden');guest.classList.add('active');const hasLocalResume=!authBackendReady&&!!data.name;edit.textContent=authBackendReady?'Sign in / Create account':(hasLocalResume?'Continue profile':'Create profile');if(drawerSignIn)drawerSignIn.hidden=false;if(drawerSignOut)drawerSignOut.hidden=true;
         if(guestNudgeTitle)guestNudgeTitle.textContent=authBackendReady?'Make Loop yours':(hasLocalResume?'Your Loop profile is still here':'Make Loop yours');
-        if(guestNudgeCopy)guestNudgeCopy.textContent=authBackendReady?'Sign in or create an account to unlock personalized recommendations, Community, Messenger, saved discoveries and reputation on any device.':(hasLocalResume?'Continue as '+firstNameFor(data.name)+' anytime, or keep exploring as a guest. Your Alpha profile is saved on this device.':'Guests can discover. Members are part of the Loop — with personalized recommendations, Community, saved discoveries and more.');
+        if(guestNudgeCopy)guestNudgeCopy.textContent=authBackendReady?'Sign in or create an account to unlock personalized recommendations, Community, Messages, saved discoveries and reputation on any device.':(hasLocalResume?'Continue as '+firstNameFor(data.name)+' anytime, or keep exploring as a guest. Your Alpha profile is saved on this device.':'Guests can discover. Members are part of the Loop — with personalized recommendations, Community, saved discoveries and more.');
         if(guestProfileAction)guestProfileAction.textContent=authBackendReady?'Sign in / Create account':(hasLocalResume?'Continue as '+firstNameFor(data.name):'Create profile');
         if(greetingKicker)greetingKicker.textContent='Welcome to';
         if(greetingName)greetingName.textContent='Loop';
@@ -1714,7 +1716,7 @@
       currentAuthUser=user;
       let row=null;
       try{
-        const result=await loopAuthClient.from('profiles').select('display_name,home_area,work_title,tastes,avatar_url,reputation_score,home_loop_radius_miles,preference_settings').eq('id',user.id).maybeSingle();
+        const result=await loopAuthClient.from('profiles').select('display_name,home_area,work_title,tastes,avatar_url,reputation_score,home_loop_radius_miles,preference_settings,public_interests,share_communities,allow_messages').eq('id',user.id).maybeSingle();
         if(!result.error)row=result.data;
       }catch{}
       const meta=user.user_metadata||{},cached={
@@ -1726,6 +1728,8 @@
         preferenceSettings:window.LoopGuide?.normalize(row?.preference_settings||{}),
         reputationScore:Math.max(0,Math.min(10,Number(row?.reputation_score)||0)),
         loopRadiusMiles:Math.max(30,Math.min(100,Number(row?.home_loop_radius_miles)||30)),
+        avatarUrl:row?.avatar_url||'',publicInterests:row?.public_interests||'',
+        shareCommunities:!!row?.share_communities,allowMessages:row?.allow_messages!==false,
         userId:user.id,
         authenticated:true
       };
@@ -1879,5 +1883,6 @@
     initializeLoopApp();
   </script>
 <script src="/community/communities-v1.js"></script>
+<script src="/social/profiles-messages.js"></script>
 </body>
 </html>
