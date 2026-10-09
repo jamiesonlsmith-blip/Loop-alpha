@@ -36,7 +36,7 @@ test('never silently interrupt active searches or typed member forms',()=>{
 });
 
 test('new service worker waits for safe activation and preserves all local user storage',()=>{
-  assert.match(sw,/CACHE_NAME = 'loop-alpha-v27'/);
+  assert.match(sw,/CACHE_NAME = 'loop-alpha-v28'/);
   assert.match(sw,/if \(!self\.registration\.active\) await self\.skipWaiting\(\)/);
   assert.match(sw,/LOOP_APPLY_UPDATE/);
   assert.match(sw,/self\.clients\.claim\(\)/);
