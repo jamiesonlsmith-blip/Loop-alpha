@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#116b3a">
+<meta name="theme-color" content="#0e6543">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
@@ -13,6 +13,8 @@
 <meta name="apple-mobile-web-app-title" content="Loop">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Loop Alpha</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js" defer></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
@@ -274,9 +276,9 @@
 </div>
 <section id="loopMapShell" class="loop-map-shell" aria-label="Global place discovery map">
 <div class="loop-map-top"><div><b>Explore anywhere on the map</b><p id="mapAreaLabel">Pan and zoom to a city, then search that area.</p></div>
-<div class="loop-map-actions"><button type="button" onclick="useMapCenter()">Search this map area</button><button type="button" onclick="useDeviceArea()">Use my location</button></div></div>
+<div class="loop-map-actions"><button type="button" onclick="useMapCenter()">Search this map area</button><button type="button" onclick="useDeviceArea()">Use my location</button><button type="button" id="mapStyleToggle" class="map-style-toggle" onclick="toggleLoopMapStyle()" aria-label="Switch map appearance">Street view</button></div></div>
 <div id="loopDiscoveryMap" role="region" aria-label="Interactive world map, pan to choose a search area"></div>
-<p class="loop-map-credit">Map © OpenStreetMap contributors. Pin locations come from Loop place-search data. Coverage is still growing worldwide.</p>
+<p class="loop-map-credit">Clean vector map powered by OpenFreeMap and OpenStreetMap. Pins reflect available Loop place data; coverage is still growing.</p>
 </section>
 <div id="results" class="cards category-results"></div>
 </div>
@@ -1210,30 +1212,82 @@
     function renderContentRecommendations(kind,term){recordInterestSignal(kind);const profile=getProfile(),tastes=[profile.tastes||'',learnedInterestText()].filter(Boolean).join(', '),label=kind==='movies'?'Movies & TV':'Music',items=[...(contentRecommendations[kind]||[])].sort((a,b)=>scoreContentRecommendation(b,term,tastes)-scoreContentRecommendation(a,term,tastes)).slice(0,5);results.innerHTML=items.map((item,index)=>`<article class="content-rec"><span class="content-kind">${kind==='movies'?'▶ Movies & TV':'♫ Music'} · ${index===0?'Top match':'For your Loop'}</span><h3>${esc(item.title)}</h3><div class="content-meta">${esc(item.meta)}</div><p class="why-fit"><b>Why it fits:</b> ${esc(item.reason)}</p><span class="peer-signal">◎ Shaped by your search${tastes?' + your taste profile':''} + peer-interest signals</span><div class="content-action">${kind==='movies'?'Streaming destination links':'Listening destination links'} are the next connection layer.</div></article>`).join('');statusEl.textContent=label+' recommendations for “'+term+'” — personalized discovery preview. No location permission needed.';results.scrollIntoView({behavior:'smooth',block:'start'})}
     function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
-    // The map changes the geographic center only when the user explicitly selects it.
-    // The GPS path and map selection both call the same /api/places endpoint.
-    let loopDiscoveryMap=null,loopMapMarkers=null,selectedMapCenter=null;
+    // Global vector map: OpenFreeMap Positron / Liberty via MapLibre GL.
+    // Leaflet with legacy OSM tiles is a compatibility fallback only.
+    // Search remains bound to /api/places and the user's explicit GPS/map choice.
+    let loopDiscoveryMap=null,loopMapMarkers=null,selectedMapCenter=null,loopMapEngine=null;
+    let loopMapAppearance='light';
+    const LOOP_MAP_STYLES={
+      light:'https://tiles.openfreemap.org/styles/positron',
+      streets:'https://tiles.openfreemap.org/styles/liberty'
+    };
+    function loopMapCenter(){
+      if(!loopDiscoveryMap)return null;
+      const center=loopDiscoveryMap.getCenter();
+      return {lat:center.lat,lng:center.lng};
+    }
+    function loopMapResize(){
+      if(!loopDiscoveryMap)return;
+      if(loopMapEngine==='vector')loopDiscoveryMap.resize();
+      else loopDiscoveryMap.invalidateSize();
+    }
+    function createLeafletBackup(label){
+      if(!window.L){if(label)label.textContent='The interactive map is temporarily unavailable. Search by location is still available.';return}
+      const container=document.getElementById('loopDiscoveryMap');
+      container.innerHTML='';
+      loopMapEngine='fallback';
+      loopDiscoveryMap=L.map(container,{worldCopyJump:true,zoomControl:false}).setView([20,0],2);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,
+        attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
+      }).addTo(loopDiscoveryMap);
+      L.control.zoom({position:'bottomright'}).addTo(loopDiscoveryMap);
+      loopMapMarkers=L.layerGroup().addTo(loopDiscoveryMap);
+      loopDiscoveryMap.on('moveend',updateMapAreaHint);
+      // Keep history restoration compatible with the original map API.
+      loopDiscoveryMap.resize=()=>loopDiscoveryMap.invalidateSize();
+    }
+    function updateMapAreaHint(){
+      if(!loopDiscoveryMap || selectedMapCenter)return;
+      const center=loopMapCenter(),label=document.getElementById('mapAreaLabel');
+      if(center&&label)label.textContent='Map center: '+center.lat.toFixed(3)+', '+center.lng.toFixed(3)+' · Tap Search this map area to explore here.';
+    }
     function ensureDiscoveryMap(){
       const shell=document.getElementById('loopMapShell'),label=document.getElementById('mapAreaLabel');
       if(!shell||shell.hidden)return;
-      if(typeof window.L==='undefined'){label.textContent='Map tiles are unavailable. Nearby search still works using your location.';return}
       if(!loopDiscoveryMap){
-        loopDiscoveryMap=L.map('loopDiscoveryMap',{worldCopyJump:true,zoomControl:true}).setView([20,0],2);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,
-          attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
-        }).addTo(loopDiscoveryMap);
-        loopMapMarkers=L.layerGroup().addTo(loopDiscoveryMap);
-        loopDiscoveryMap.on('moveend',()=>{
-          const center=loopDiscoveryMap.getCenter();
-          if(!selectedMapCenter)label.textContent='Map center: '+center.lat.toFixed(3)+', '+center.lng.toFixed(3)+' · Select Search this map area to search here.';
-        });
+        const supported=window.maplibregl && window.maplibregl.supported?.();
+        if(supported){
+          try{
+            loopMapEngine='vector';
+            loopDiscoveryMap=new maplibregl.Map({
+              container:'loopDiscoveryMap',
+              style:LOOP_MAP_STYLES[loopMapAppearance],
+              center:[0,20],zoom:2,attributionControl:true,
+              renderWorldCopies:true,cooperativeGestures:false,
+              pitchWithRotate:false,dragRotate:false,
+              maxPitch:0
+            });
+            loopDiscoveryMap.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-right');
+            loopDiscoveryMap.on('moveend',updateMapAreaHint);
+            loopMapMarkers=[];
+            // Used by the existing Back-navigation restoration.
+            loopDiscoveryMap.invalidateSize=()=>loopDiscoveryMap.resize();
+          }catch(e){console.warn('Modern map unavailable:',e?.message||e);loopDiscoveryMap=null;createLeafletBackup(label)}
+        }else createLeafletBackup(label);
       }
-      requestAnimationFrame(()=>loopDiscoveryMap.invalidateSize());
+      requestAnimationFrame(loopMapResize);
+    }
+    function toggleLoopMapStyle(){
+      loopMapAppearance=loopMapAppearance==='light'?'streets':'light';
+      const toggle=document.getElementById('mapStyleToggle');
+      if(toggle)toggle.textContent=loopMapAppearance==='light'?'Street view':'Minimal view';
+      if(loopMapEngine==='vector'&&loopDiscoveryMap)loopDiscoveryMap.setStyle(LOOP_MAP_STYLES[loopMapAppearance]);
+      else if(toggle)toggle.textContent='Map view';
     }
     function useMapCenter(){
       ensureDiscoveryMap();
       if(!loopDiscoveryMap){statusEl.textContent='Interactive map is unavailable. Search using your device location instead.';return}
-      const center=loopDiscoveryMap.getCenter();
+      const center=loopMapCenter();
       selectedMapCenter={lat:center.lat,lon:center.lng};
       document.getElementById('mapAreaLabel').textContent='Selected map area: '+center.lat.toFixed(3)+', '+center.lng.toFixed(3);
       if(q.value.trim())findPlaces();
@@ -1245,33 +1299,70 @@
       navigator.geolocation.getCurrentPosition(p=>{
         selectedMapCenter=null;
         ensureDiscoveryMap();
-        if(loopDiscoveryMap)loopDiscoveryMap.setView([p.coords.latitude,p.coords.longitude],11);
+        if(loopDiscoveryMap){
+          if(loopMapEngine==='vector')loopDiscoveryMap.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:11,duration:450});
+          else loopDiscoveryMap.setView([p.coords.latitude,p.coords.longitude],11);
+        }
         document.getElementById('mapAreaLabel').textContent='Using current location for your next search.';
         if(q.value.trim())findPlaces();
         else statusEl.textContent='Location selected. Enter what you want to find.';
       },()=>{statusEl.textContent='Could not access current location. You can still select an area on the map.'},
       {enableHighAccuracy:false,timeout:12000,maximumAge:300000});
     }
+    function clearMapPins(){
+      if(!loopMapMarkers)return;
+      if(loopMapEngine==='vector'){loopMapMarkers.forEach(marker=>marker.remove());loopMapMarkers=[];}
+      else loopMapMarkers.clearLayers();
+    }
+    function createVectorPin(lon,lat,name,searchCenter=false){
+      const element=document.createElement('div');
+      element.className='loop-vector-pin'+(searchCenter?' loop-vector-center':'');
+      element.setAttribute('role','img');
+      element.setAttribute('aria-label',searchCenter?'Search center':name);
+      const marker=new maplibregl.Marker({element,anchor:'bottom'}).setLngLat([lon,lat]);
+      if(!searchCenter){
+        const popup=document.createElement('div');
+        popup.className='loop-pin-popup';popup.textContent=name;
+        marker.setPopup(new maplibregl.Popup({offset:20,closeButton:true}).setDOMContent(popup));
+      }
+      marker.addTo(loopDiscoveryMap);
+      loopMapMarkers.push(marker);
+    }
     function showMapResults(items,search){
       if(!loopDiscoveryMap||!loopMapMarkers||!search)return;
-      loopMapMarkers.clearLayers();
+      clearMapPins();
       const lat=Number(search.lat),lon=Number(search.lon);
       if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
-      const bounds=L.latLngBounds([[lat,lon]]);
-      L.circleMarker([lat,lon],{radius:9,color:'#116b3a',weight:3,fillOpacity:0.15})
-        .bindTooltip('Search center').addTo(loopMapMarkers);
+      const valid=[];
       for(const item of items){
         const y=Number(item.lat),x=Number(item.lon);
         if(!Number.isFinite(y)||!Number.isFinite(x)||y < -90||y > 90||x < -180||x > 180)continue;
-        const marker=L.circleMarker([y,x],{radius:7,color:'#b02d25',weight:2,fillColor:'#ffd54f',fillOpacity:0.9});
-        const name=document.createElement('span');
-        name.textContent=String(item.loop_name||item.name||'Place');
-        marker.bindPopup(name).addTo(loopMapMarkers);
-        bounds.extend([y,x]);
+        valid.push({lat:y,lon:x,name:String(item.loop_name||item.name||'Place')});
       }
-      loopDiscoveryMap.invalidateSize();
-      if(bounds.isValid()&&items.length)loopDiscoveryMap.fitBounds(bounds.pad(0.15),{maxZoom:13,animate:false});
-      else loopDiscoveryMap.setView([lat,lon],10,{animate:false});
+      if(loopMapEngine==='vector'){
+        createVectorPin(lon,lat,'Search center',true);
+        const bounds=new maplibregl.LngLatBounds([lon,lat],[lon,lat]);
+        for(const place of valid){
+          createVectorPin(place.lon,place.lat,place.name);
+          bounds.extend([place.lon,place.lat]);
+        }
+        loopDiscoveryMap.resize();
+        if(valid.length)loopDiscoveryMap.fitBounds(bounds,{padding:38,maxZoom:13,duration:450});
+        else loopDiscoveryMap.easeTo({center:[lon,lat],zoom:10,duration:450});
+      }else{
+        const bounds=L.latLngBounds([[lat,lon]]);
+        L.circleMarker([lat,lon],{radius:9,color:'#106b48',weight:3,fillOpacity:0.15})
+          .bindTooltip('Search center').addTo(loopMapMarkers);
+        for(const place of valid){
+          const marker=L.circleMarker([place.lat,place.lon],{radius:7,color:'#106b48',weight:2,fillColor:'#ffd05b',fillOpacity:0.94});
+          const popup=document.createElement('span');popup.textContent=place.name;
+          marker.bindPopup(popup).addTo(loopMapMarkers);
+          bounds.extend([place.lat,place.lon]);
+        }
+        loopDiscoveryMap.invalidateSize();
+        if(valid.length)loopDiscoveryMap.fitBounds(bounds.pad(0.15),{maxZoom:13,animate:false});
+        else loopDiscoveryMap.setView([lat,lon],10,{animate:false});
+      }
     }
     let activePlaceSearch=null;
     function placeScopeName(scope,radius){const miles=Number(radius)||30;return scope==='local'?'your current '+miles+'-mile Loop':'the expanded '+miles+'-mile Loop'}
