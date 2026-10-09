@@ -96,7 +96,7 @@
     if(state.tab==='Saved')posts=posts.filter(p=>state.bookmarks.some(b=>b.post_id===p.id));
     if(state.tab==='Nearby')posts=posts.filter(p=>!!area&&!!p.area&&p.area.toLowerCase().trim()===area);
     if(state.tab==='Trending')posts.sort((a,b)=>score(b)-score(a)||new Date(b.created_at)-new Date(a.created_at));
-    else if(state.tab==='For You')posts.sort((a,b)=>score(b)+8*(a.topic==='Recommendation')-score(a)-8*(b.topic==='Recommendation')||new Date(b.created_at)-new Date(a.created_at));
+    else if(state.tab==='For You')posts.sort((a,b)=>score(b)+8*(b.topic==='Recommendation')-score(a)-8*(a.topic==='Recommendation')||new Date(b.created_at)-new Date(a.created_at));
     else posts.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     return posts;
   }
@@ -326,4 +326,5 @@
   initPostDialog();
   initBulletin();
   draw();
+  if(document.getElementById('communityPage').classList.contains('active'))window.renderCommunity();
 })();
