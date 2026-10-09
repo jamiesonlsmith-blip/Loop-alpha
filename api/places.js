@@ -247,6 +247,24 @@ function searchIntent(value = '', category = '') {
     };
   }
 
+  // Translate natural lifestyle requests to an actual place category, then
+  // treat modifiers such as music as preferences, not mandatory place names.
+  // Avoid misreading "bar" inside words like "barber".
+  if (/\b(?:drinks?|cocktails?|happy hour|bars?|lounges?|pubs?|nightlife)\b/.test(q) &&
+      (category === 'restaurants' || category === 'all' || category === '' || category === 'fun-games')) {
+    const musicRequested = /\b(?:music|dj|jazz|band|dancing|dance|live performance|live entertainment)\b/.test(q);
+    return {
+      key: 'nightlife',
+      interpretedAs: 'Bars, lounges, pubs and nightlife',
+      qualifiers: musicRequested ? ['Music or atmosphere requested · Confirm with venue'] : [],
+      exactQueries: ['bar', 'lounge', 'cocktail bar', 'pub'],
+      relatedQueries: ['restaurant bar', 'nightclub'],
+      allowRelated: true,
+      relatedTypes: ['bar', 'pub', 'lounge', 'nightclub', 'restaurant'],
+      relatedPattern: /\b(?:bar|pub|lounge|nightclub|restaurant)\b/i,
+      relatedNote: 'Related dining or nightlife option · Drinks and music are not confirmed'
+    };
+  }
   if (/\brooftop\b|\broof[ -]?top\b/.test(q)) {
     return { key: 'rooftop', exactQueries: unique([q, 'rooftop bar', 'rooftop lounge', 'rooftop restaurant']), relatedQueries: [], allowRelated: false };
   }
@@ -386,6 +404,31 @@ function passesRelatedIntent(item, intent) {
   if ((intent.relatedTypes || []).includes(type) || (intent.relatedTypes || []).includes(category)) return true;
   const text = itemSearchText(item);
   return intent.relatedPattern ? intent.relatedPattern.test(text) : false;
+}
+
+// Music is a soft preference; there must be actual venue-type evidence for
+// the suggestion to count as a nightlife result. Do not return barber shops,
+// unrelated churches, or generic restaurants as confirmed bars.
+function nightlifeMatchType(item = {}) {
+  const type = normalize(item.type);
+  const tags = item.extratags || {};
+  const taxonomy = normalize(tags.taxonomy || '');
+  const basic = normalize(tags.basic_category || '');
+  const directTypes = ['bar', 'pub', 'lounge', 'nightclub', 'nightlife_venue',
+    'dance_club', 'music_venue'];
+  if (directTypes.includes(type) || directTypes.includes(basic) ||
+    /^(?:bar|lounge|pub|cocktail_bar|sports_bar|wine_bar|beer_bar|dive_bar|hookah_bar|gay_bar|tapas_bar|gastropub|dance_club|nightclub|nightlife_venue|music_venue)$/.test(taxonomy)) return 'direct';
+  // Bars inside restaurants may be useful, but their drink service is not verified.
+  if (['restaurant', 'cafe'].includes(type) &&
+      /(?:bar_and_grill_restaurant|gastropub|restaurant_bar|live_music)/.test(taxonomy)) return 'related';
+  return null;
+}
+
+function confirmedMusicTag(item = {}) {
+  const tags = item.extratags || {};
+  return ['yes','true','live','regular'].includes(normalize(tags.live_music)) ||
+    ['yes','true','live','regular'].includes(normalize(tags['music:live'])) ||
+    ['live','yes'].includes(normalize(tags.music));
 }
 
 function clampBaseRadius(value) {
@@ -684,6 +727,30 @@ async function searchCuisineOverpass(intent, lat, lon, radiusMiles) {
 }
 
 
+// A category-based fallback for nightlife. Nominatim is a geocoder, not a
+// comprehensive bar directory; read tagged bar/pub/nightclub POIs instead.
+// Fixed OSM tags only: no raw user phrase is interpolated into Overpass.
+async function searchNightlifeOverpass(lat, lon, radiusMiles) {
+  const metres = Math.ceil(radiusMiles * 1609.344);
+  const around = `(around:${metres},${lat},${lon})`;
+  const query = `[out:json][timeout:12];(nwr${around}["amenity"~"^(bar|pub|nightclub)$"];nwr${around}["amenity"="restaurant"]["bar"="yes"];);out center 80;`;
+  let lastError;
+  for (const endpoint of OVERPASS_URLS) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body: new URLSearchParams({ data: query }),
+        signal: AbortSignal.timeout(4800)
+      });
+      if (!response.ok) throw new Error('Overpass HTTP ' + response.status);
+      const json = await response.json();
+      return (Array.isArray(json.elements) ? json.elements : []).map(overpassItem).filter(Boolean);
+    } catch (error) { lastError = error; }
+  }
+  throw lastError || new Error('Nightlife place-data provider unavailable');
+}
+
 /*
  * An optional, more complete POI index for cuisine discovery. OSM/Nominatim
  * often omit restaurant cuisine tags; a free-text geocoder cannot compensate.
@@ -739,6 +806,7 @@ function overtureTerms(intent, query) {
   if (intent.cuisine) return [intent.cuisine.key];
   const categoryTerms = {
     'restaurant-general': ['restaurant', 'casual_eatery', 'cafe', 'food_court'],
+    nightlife: ['bar', 'lounge', 'pub', 'nightlife_venue', 'dance_club', 'cocktail_bar'],
     'fast-food': ['fast_food', 'casual_eatery', 'quick_service_restaurant', 'burger_restaurant'],
     burgers: ['burger_restaurant', 'hamburger', 'burger', 'casual_eatery'],
     steak: ['steakhouse', 'steak', 'grill_restaurant'],
@@ -803,7 +871,7 @@ function overtureItem(row) {
       city: cleanText(row.locality), state: cleanText(row.region),
       country: cleanText(row.country), country_code: normalize(row.country)
     },
-    extratags: { cuisine, taxonomy: category },
+    extratags: { cuisine, taxonomy: category, basic_category: basic },
     namedetails: { name: cleanText(row.name) },
     loop_discovery_provider: 'overture',
     loop_source_release: cleanText(row.source_release),
@@ -937,7 +1005,8 @@ export default async function handler(req, res) {
       const uncertainty = item.loop_geo_precision === 'city' ? Number(item.loop_uncertainty_miles) || 0 : 0;
       if (milesBetween(lat, lon, itemLat, itemLon) + uncertainty > radiusMiles) return;
       const isPlacesSuggestion = item.loop_discovery_provider === 'google-places';
-      const matchType = isPlacesSuggestion && intent.cuisine
+      const matchType = intent.key === 'nightlife' ? nightlifeMatchType(item)
+        : isPlacesSuggestion && intent.cuisine
         ? (cuisineMatchType(item, intent, query) || 'related')
         : intent.cuisine
           ? (passesIntent(item, query) ? cuisineMatchType(item, intent, query) : null)
@@ -948,7 +1017,13 @@ export default async function handler(req, res) {
       const key = resultKey(item);
       if (seen.has(key)) return;
       seen.add(key);
-      const note = item.loop_discovery_provider === 'overture'
+      const note = intent.key === 'nightlife'
+        ? (matchType === 'related'
+            ? 'Related restaurant option · Drinks/music not verified'
+            : confirmedMusicTag(item)
+              ? 'Bar/lounge listing · Live music tag present; verify schedule'
+              : 'Bar/lounge listing · Music and atmosphere not verified')
+        : item.loop_discovery_provider === 'overture'
         ? (matchType === 'direct' ? 'Category from Overture Maps · Confirm current details' : intent.relatedNote)
         : item.loop_discovery_provider === 'loop-curated'
         ? 'Source-backed local listing · Check current hours before visiting'
@@ -998,6 +1073,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // Resolve nightlife to structured POIs when the Overture regional index is
+    // sparse, without depending on a word-for-word match in business names.
+    if (intent.key === 'nightlife' && merged.length < 8) {
+      try {
+        const found = await searchNightlifeOverpass(lat, lon, radiusMiles);
+        providerSucceeded = true;
+        matchedQueries.push('OpenStreetMap nightlife venues');
+        found.forEach(addMatchedItem);
+      } catch (error) {
+        console.warn('Loop nightlife lookup unavailable:', error?.message || error);
+      }
+    }
+
     // Search for the actual cuisine category, not a long natural-language phrase.
     const namesToFind = intent.cuisine ? [intent.cuisine.key + ' restaurant'] : intent.exactQueries;
     for (const candidate of merged.length >= 15 ? [] : namesToFind) {
@@ -1032,7 +1120,9 @@ export default async function handler(req, res) {
     // related options so Loop stays useful without pretending a service is confirmed.
     if (intent.allowRelated && merged.length < 6) {
       for (const candidate of intent.relatedQueries) {
-        const found = await searchNominatim(candidate, viewbox, language);
+        let found;
+        try { found = await searchNominatim(candidate, viewbox, language); }
+        catch (error) { console.warn('Loop related lookup unavailable:', error?.message || error); continue; }
         matchedQueries.push(candidate);
 
         for (const item of found) {
@@ -1079,6 +1169,8 @@ export default async function handler(req, res) {
       nextScope: radiusMiles < MAX_BASE_RADIUS_MILES ? scope.next : null,
       strictIntent: hardIntentGroups(query).length > 0,
       intentKey: intent.key,
+      interpretedAs: intent.interpretedAs || '',
+      searchQualifiers: intent.qualifiers || [],
       directCount,
       relatedCount,
       items,
@@ -1089,7 +1181,7 @@ export default async function handler(req, res) {
       overtureMatches: overtureResults,
       coverage: 'OpenStreetMap listings may be incomplete. A missing result does not establish that no business exists.',
       attribution: (overtureResults ? 'Place data © Overture Maps Foundation and data providers. ' : '') +
-        (matchedQueries.some(value => /OpenStreetMap cuisine:|restaurant|food|repair|shop/i.test(value)) ?
+        (matchedQueries.some(value => /OpenStreetMap cuisine:|OpenStreetMap nightlife|restaurant|food|repair|shop/i.test(value)) ?
           'OpenStreetMap data © OpenStreetMap contributors. ' : '') +
         (googlePlacesUsed ? 'Google Places results © Google. ' : '') +
         (localCandidates.length ? 'Additional public directory references checked by Loop. ' : '') +
@@ -1102,4 +1194,4 @@ export default async function handler(req, res) {
 }
 
 // Small, side-effect-free exports for search-intent regression tests.
-export { searchIntent, cuisineMatchType, overpassItem, overtureItem, overtureTerms, resultKey };
+export { searchIntent, cuisineMatchType, nightlifeMatchType, overpassItem, overtureItem, overtureTerms, resultKey };
