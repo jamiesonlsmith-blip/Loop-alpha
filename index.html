@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Loop">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Loop Alpha</title>
+<script defer src="/updates/auto-update.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@5.12.0/dist/maplibre-gl.js" defer></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -273,6 +274,22 @@
     @media(prefers-reduced-motion:reduce){
       *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
     }
+    /* Non-disruptive update alert; leaves active searches and member drafts intact. */
+    .loop-update-banner{
+      position:fixed;left:50%;bottom:calc(94px + env(safe-area-inset-bottom, 0px));
+      width:min(94vw,440px);transform:translateX(-50%);z-index:80;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:13px 14px;background:#fff;border:1px solid #d6e9dd;border-radius:18px;
+      box-shadow:0 12px 36px #092e2252;color:#123e2b;
+    }
+    .loop-update-banner strong,.loop-update-banner small{display:block}
+    .loop-update-banner strong{font-size:14px;font-weight:830}
+    .loop-update-banner small{color:#536f60;font-size:12px;margin-top:3px;line-height:1.3}
+    .loop-update-actions{display:flex;gap:7px;flex-shrink:0}
+    .loop-update-actions button{border:0;border-radius:11px;background:#11784c;color:white;font-size:12px;font-weight:800;padding:10px 12px;min-height:40px}
+    .loop-update-actions .loop-update-later{background:#eaf3ed;color:#24533a}
+    @media(max-width:400px){.loop-update-banner{align-items:stretch}.loop-update-actions{width:100%}.loop-update-actions button{flex:1}}
+    @media(prefers-reduced-motion:reduce){.loop-update-banner *{transition:none!important}}
 </style>
 </head>
 <body>
@@ -701,6 +718,11 @@
 <span id="installLoopIcon" class="settings-icon">↓</span>
 <span class="settings-copy"><b id="installLoopTitle">Add Loop to this phone</b><small id="installLoopCopy">Install Loop Alpha with its own home-screen icon</small></span>
 <span id="installLoopChevron" class="settings-chevron">›</span>
+</button>
+<button id="loopUpdateButton" class="settings-row" onclick="window.LoopAutoUpdate?.checkNow()" type="button">
+<span class="settings-icon">↻</span>
+<span class="settings-copy"><b>App updates</b><small id="loopUpdateStatus">Automatically checks for app updates</small></span>
+<span class="settings-chevron">›</span>
 </button>
 <button id="notificationSettingsButton" class="settings-row" onclick="enableNotifications()">
 <span id="notificationSettingsIcon" class="settings-icon">♢</span>
@@ -1179,7 +1201,8 @@
     window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;syncInstallState()});
     window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;syncInstallState();notify('Loop Alpha is installed')});
     window.addEventListener('DOMContentLoaded',()=>{syncInstallState();syncNotificationState();maybeOfferNotifications()});
-    if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}
+    // SW registration and updates are managed by /updates/auto-update.js.
+
     const places={harbor:{name:'Harbor Kitchen',category:'Seafood · Fort Lauderdale',address:'Waterfront dining inside your South Florida Loop',score:'9.1',confidence:'High confidence · 126 experiences',returnRate:'94%',matchRate:'91%',experience:'Perfect for a relaxed dinner. The patio gets quieter after 7:30, and the staff handled our larger group beautifully.',author:'Maria Flores · Rep 91'},coastal:{name:'Coastal Air & Electric',category:'Home Services · Plantation',address:'Licensed home repair service · 3.4 miles away',score:'8.8',confidence:'High confidence · 84 experiences',returnRate:'92%',matchRate:'89%',experience:'They explained the repair before starting, arrived inside the promised window, and the final price matched the estimate.',author:'David Kim · Rep 87'}};
     let currentPlace='harbor',toastTimer;
     function setLoopWallpaper(on){document.body.classList.toggle('loop-wallpaper-on',!!on);if(loopWallpaper)loopWallpaper.classList.toggle('active',!!on)}
