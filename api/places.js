@@ -268,7 +268,7 @@ function searchIntent(value = '', category = '') {
     relatedPattern: /restaurant|steak|grill/i,
     relatedNote: 'Related restaurant · Steak menu not verified'
   };
-  if (/\b(?:dessert|ice cream|bakery|pastries)\b/.test(q)) return {
+  if (/\b(?:desserts?|ice cream|bakery|pastries)\b/.test(q)) return {
     key: 'desserts', exactQueries: ['dessert', 'bakery', 'ice cream'],
     relatedQueries: ['cafe'], allowRelated: true, relatedTypes:['restaurant','cafe'],
     relatedPattern: /dessert|bakery|ice.cream|pastry|cafe/i,
