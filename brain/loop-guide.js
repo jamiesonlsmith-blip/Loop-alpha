@@ -104,7 +104,23 @@
     if (!Array.isArray(items))return [];
     const prefs=normalize(rawPreferences),cat=categoryFor(category,query);
     const isGeneric = /^(?:restaurants?|food|places to eat|eat|nearby|something nearby|fun|games|shopping|stores|retail)$/i.test(query.trim());
-    const scored=items.map((place,index)=>({ ...scorePlace(place,prefs,cat,query,activity),index }));
+    // Explicit exclusions belong to the search, not a guessed personality.
+    const exclusions=[];
+    const requested=asText(query);
+    for(const [name,pattern] of [
+      ['mcdonalds',/mcdonald'?s?/],['wendys',/wendy'?s?/],['burger king',/burger king/],
+      ['taco bell',/taco bell/],['kfc',/\bkfc\b/],['starbucks',/starbucks/]
+    ]){
+      const found=requested.match(pattern);
+      if(!found)continue;
+      const before=requested.slice(Math.max(0,found.index-26),found.index);
+      if(/(?:\bnot\\s+(?:a\\s+|the\\s+|like\\s+)?|\bavoid\\s+|\bexcept\\s+|\bother than\\s+)$/.test(before))
+        exclusions.push(name);
+    }
+    const scored=items.filter(item=>{
+      const name=asText(item?.loop_name||item?.name).replace(/[^a-z0-9]+/g,'');
+      return !exclusions.some(excluded=>name.includes(excluded.replace(/[^a-z0-9]+/g,'')));
+    }).map((place,index)=>({ ...scorePlace(place,prefs,cat,query,activity),index }));
     // Direct matches always outrank related suggestions; do not override explicit intent.
     scored.sort((a,b)=>b.direct-a.direct || b.extra-a.extra || a.index-b.index);
     return scored.map(({place,reason,extra})=>({
