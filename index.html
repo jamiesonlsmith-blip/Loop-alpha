@@ -118,6 +118,11 @@
     button{transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease,transform .2s ease}
     button:active{transform:scale(.985)}
     button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #e9b83c;outline-offset:3px}
+    /* Search focus: preserve the rounded search pill, not a gold rectangle
+       around the narrow text input. Other controls retain visible outlines. */
+    .search input:focus-visible{outline:none;outline-offset:0;box-shadow:none}
+    .search:focus-within{box-shadow:0 15px 45px #0002,0 0 0 2px rgba(15,112,75,.22)}
+    @media(forced-colors:active){.search:focus-within{outline:2px solid Highlight;outline-offset:2px}}
     .hero{background:transparent}
     .app-header,.detail-header{
       background:rgba(255,255,255,.94);border-bottom:1px solid rgba(24,79,48,.075);
