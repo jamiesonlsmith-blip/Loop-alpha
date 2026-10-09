@@ -69,6 +69,6 @@ test('profile preference UI JavaScript parses and preserves guest separation',as
 
 test('explicit search exclusions omit common brand names',()=>{
   const items=[place('McDonalds','fast_food'),place('Wendys','fast_food'),place('Local Burger Kitchen','casual_eatery')];
-  const ranked=guide.rankPlaces(items,guide.normalize({categories:{restaurants:['fast-food']}}),'restaurants',\"new fast food, not McDonald's, not Wendy's\");
+  const ranked=guide.rankPlaces(items,guide.normalize({categories:{restaurants:['fast-food']}}),'restaurants',"new fast food, not McDonald's, not Wendy's");
   assert.deepEqual(ranked.map(item=>item.name),['Local Burger Kitchen']);
 });
