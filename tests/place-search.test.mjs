@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 // Import as ESM without changing the application's deployment/module settings.
 const source = await readFile(new URL('../api/places.js', import.meta.url), 'utf8');
-const { default: handler, searchIntent, cuisineMatchType, overpassItem, overtureItem, overtureTerms, resultKey } =
+const { default: handler, searchIntent, cuisineMatchType, nightlifeMatchType, overpassItem, overtureItem, overtureTerms, resultKey } =
   await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
 const restaurant = (cuisine, name = 'Test Kitchen') =>
@@ -346,4 +346,100 @@ test('understands everyday food choices as restaurant intents',()=>{
   assert.equal(searchIntent('steakhouse','restaurants').key,'steak');
   assert.equal(searchIntent('desserts','restaurants').key,'desserts');
   assert.ok(overtureTerms(searchIntent('new fast food place','restaurants'),'new fast food place').includes('casual_eatery'));
+});
+
+
+test('interprets conversational drinks-and-music search as bars and lounges, not literal text', () => {
+  const p=searchIntent('Drinks with good music', 'restaurants');
+  assert.equal(p.key,'nightlife');
+  assert.deepEqual(p.exactQueries,['bar','lounge','cocktail bar','pub']);
+  assert.match(p.interpretedAs,/Bars, lounges/);
+  assert.ok(p.qualifiers.some(q=>q.includes('Music')));
+  assert.equal(searchIntent('cocktail lounge with jazz','restaurants').key,'nightlife');
+  assert.notEqual(searchIntent('barber shop','restaurants').key,'nightlife');
+  assert.deepEqual(overtureTerms(p,'drinks with good music'),
+    ['bar','lounge','pub','nightlife_venue','dance_club','cocktail_bar']);
+});
+
+test('nightlife listings require venue evidence, not a substring like barber or salad bar', () => {
+  assert.equal(nightlifeMatchType({type:'bar'}),'direct');
+  assert.equal(nightlifeMatchType({type:'pub'}),'direct');
+  assert.equal(nightlifeMatchType({type:'lounge',extratags:{taxonomy:'lounge'}}),'direct');
+  assert.equal(nightlifeMatchType({type:'dance_club'}),'direct');
+  assert.equal(nightlifeMatchType({type:'restaurant',extratags:{taxonomy:'bar_and_grill_restaurant'}}),'related');
+  assert.equal(nightlifeMatchType({type:'barber',extratags:{taxonomy:'barber'}}),null);
+  assert.equal(nightlifeMatchType({type:'restaurant',extratags:{taxonomy:'salad_bar'}}),null);
+  assert.equal(nightlifeMatchType({type:'church',name:'Good Music'}),null);
+});
+
+test('returns real indexed bars for the suggested phrase without fabricating music evidence',async()=>{
+  const prevFetch=globalThis.fetch,prevUrl=process.env.SUPABASE_URL,prevKey=process.env.SUPABASE_SECRET_KEY;
+  process.env.SUPABASE_URL='https://example.supabase.co';
+  process.env.SUPABASE_SECRET_KEY='fake-test-only';
+  let rpcCalls=0;
+  globalThis.fetch=async(url,options={})=>{
+    const target=String(url);
+    if(target.includes('/rpc/loop_search_index')){
+      rpcCalls++;
+      const body=JSON.parse(options.body);
+      assert.ok(body.in_terms.includes('lounge'));
+      return {ok:true,json:async()=>[
+        {overture_id:'bar-test',name:'Moonlight Lounge',basic_category:'lounge',
+         taxonomy_primary:'lounge',taxonomy_hierarchy:['lounge'],
+         latitude:25.892,longitude:-80.262,source_release:'test'},
+        {overture_id:'barber-test',name:'Moonlight Barber',basic_category:'personal_or_beauty_service',
+         taxonomy_primary:'barber',taxonomy_hierarchy:['barber'],
+         latitude:25.892,longitude:-80.262,source_release:'test'}
+      ]};
+    }
+    if(target.includes('overpass'))return {ok:true,json:async()=>({elements:[]})};
+    return {ok:true,json:async()=>[]};
+  };
+  try{
+    const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;return this;},
+      status(code){this.statusCode=code;return this;},json(body){this.body=body;return this;}};
+    await handler({method:'GET',query:{q:'Drinks with good music',lat:'25.892',
+      lon:'-80.262',category:'restaurants',scope:'local',baseRadius:'30'},
+      headers:{}},res);
+    assert.equal(res.statusCode,200);
+    assert.equal(res.body.intentKey,'nightlife');
+    assert.equal(res.body.items.length,1);
+    assert.equal(res.body.items[0].name,'Moonlight Lounge');
+    assert.match(res.body.items[0].loop_match_note,/Music and atmosphere not verified/);
+    assert.equal(rpcCalls,1);
+    assert.ok(res.body.interpretedAs.includes('Bars'));
+  }finally{
+    globalThis.fetch=prevFetch;
+    if(prevUrl===undefined)delete process.env.SUPABASE_URL;else process.env.SUPABASE_URL=prevUrl;
+    if(prevKey===undefined)delete process.env.SUPABASE_SECRET_KEY;else process.env.SUPABASE_SECRET_KEY=prevKey;
+  }
+});
+
+test('nightlife lookup falls back to tagged OSM bars when no indexed venues exist',async()=>{
+  const prevFetch=globalThis.fetch,prevUrl=process.env.SUPABASE_URL,prevKey=process.env.SUPABASE_SECRET_KEY;
+  delete process.env.SUPABASE_URL;delete process.env.SUPABASE_SECRET_KEY;
+  let usedOverpass=false;
+  globalThis.fetch=async(url)=>{
+    if(String(url).includes('overpass-api.de')){
+      usedOverpass=true;
+      return {ok:true,json:async()=>({elements:[
+        {type:'node',id:155,lat:25.892,lon:-80.262,tags:{name:'Local Cocktail Spot',amenity:'bar'}},
+        {type:'node',id:156,lat:25.892,lon:-80.261,tags:{name:'Unrelated Barber',shop:'hairdresser'}}
+      ]})};
+    }
+    return {ok:true,json:async()=>[]};
+  };
+  try{
+    const res={setHeader(){},status(code){this.statusCode=code;return this;},json(body){this.body=body;return this;}};
+    await handler({method:'GET',query:{q:'drinks with good music',lat:'25.892',
+      lon:'-80.262',category:'restaurants'},headers:{}},res);
+    assert.equal(res.statusCode,200);
+    assert.ok(usedOverpass);
+    assert.deepEqual(res.body.items.map(p=>p.name),['Local Cocktail Spot']);
+    assert.match(res.body.items[0].loop_match_note,/not verified/);
+  }finally{
+    globalThis.fetch=prevFetch;
+    if(prevUrl!==undefined)process.env.SUPABASE_URL=prevUrl;
+    if(prevKey!==undefined)process.env.SUPABASE_SECRET_KEY=prevKey;
+  }
 });
