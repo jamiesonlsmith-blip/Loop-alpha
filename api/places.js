@@ -251,6 +251,7 @@ function searchIntent(value = '', category = '') {
   // treat modifiers such as music as preferences, not mandatory place names.
   // Avoid misreading "bar" inside words like "barber".
   if (/\b(?:drinks?|cocktails?|happy hour|bars?|lounges?|pubs?|nightlife)\b/.test(q) &&
+      !/\broof[ -]?top\b/.test(q) &&
       (category === 'restaurants' || category === 'all' || category === '' || category === 'fun-games')) {
     const musicRequested = /\b(?:music|dj|jazz|band|dancing|dance|live performance|live entertainment)\b/.test(q);
     return {
