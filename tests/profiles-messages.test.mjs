@@ -65,3 +65,13 @@ test('in-app notices and installed app updates include new files',()=>{
   for(const asset of ['/social/profiles-messages.css','/social/profiles-messages.js'])assert.ok(sw.includes(asset));
   assert.match(sw,/social\\\//);
 });
+
+test('Profile has a single bottom navigation entry and drawer uses the saved member avatar',()=>{
+  assert.match(html,/<button id="navYou" onclick="showProfile\(\)">\s*<span class="nav-icon">☺<\/span><span>Profile<\/span>/);
+  assert.doesNotMatch(html,/<span class="mi">☺<\/span>Profile & Reputation<\/button>/);
+  assert.match(html,/function syncDrawerAvatar\(element,profile\)/);
+  assert.match(html,/syncDrawerAvatar\(drawerAvatar,data\)/);
+  assert.match(html,/profile\?\.avatarUrl/);
+  assert.match(html,/\.drawer-avatar img\{width:100%;height:100%;object-fit:cover/);
+  assert.match(html,/if\(drawerAvatar\)drawerAvatar.textContent='G'/);
+});
