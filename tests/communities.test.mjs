@@ -52,6 +52,6 @@ test('RLS writes require joined membership and users own their reactions',()=>{
 test('installed app caches new screens and preserves network-first code updates',()=>{
   assert.ok(sw.includes("'/community/communities-v1.js'"));
   assert.ok(sw.includes("'/community/communities-v1.css'"));
-  assert.ok(sw.includes('loop-alpha-v27'));
+  assert.ok(sw.includes('loop-alpha-v28'));
   assert.match(sw,/cache: 'no-store'/);
 });
