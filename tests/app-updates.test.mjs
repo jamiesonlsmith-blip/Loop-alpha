@@ -42,7 +42,7 @@ test('new service worker waits for safe activation and preserves all local user 
   assert.match(sw,/self\.clients\.claim\(\)/);
   assert.match(sw,/if \(url\.pathname\.startsWith\('\/api\/'\)\) return/);
   assert.match(sw,/const isCode =/);
-  assert.match(sw,/community\\\/communities-v1\\.js/);
+  assert.ok(sw.includes('/community/communities-v1.js'));
   assert.match(sw,/cache: 'no-store'/);
   assert.doesNotMatch(sw,/localStorage|indexedDB|deleteDatabase/);
   assert.doesNotMatch(update,/localStorage\.clear|indexedDB\.deleteDatabase/);
