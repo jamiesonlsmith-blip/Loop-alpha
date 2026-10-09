@@ -1,0 +1,52 @@
+name: Build approved Loop app icons
+on:
+  push:
+    branches:
+      - design/approved-android-ios-icon-20261009
+    paths:
+      - 'icons/loop-approved-source.b64'
+      - 'scripts/build_loop_icons.py'
+      - '.github/workflows/build-loop-icons.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-icons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Check out icon branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install image toolkit
+        run: python -m pip install --disable-pip-version-check Pillow==11.3.0
+      - name: Generate Android, iOS and maskable icons
+        run: python scripts/build_loop_icons.py
+      - name: Verify dimensions and color
+        run: |
+          python - <<'PY'
+          from PIL import Image
+          for size, name in [(180, 'icon-180.png'), (192,'icon-192.png'),
+                             (512,'icon-512.png'),(512,'icon-maskable-512.png')]:
+              image=Image.open('icons/'+name)
+              image.verify()
+              image=Image.open('icons/'+name).convert('RGBA')
+              assert image.size==(size,size), name
+              assert image.getpixel((size//2,size//2))[3]==255
+              print(name,'valid',image.size)
+          PY
+      - name: Commit generated launcher assets
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add icons/icon-180.png icons/icon-192.png icons/icon-512.png icons/icon-maskable-512.png
+          if ! git diff --cached --quiet; then
+            git commit -m 'Build polished Loop launcher PNGs from approved artwork'
+            git push
+          fi
