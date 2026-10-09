@@ -59,10 +59,10 @@ test('category-aware inference is limited and medical preferences are not profil
 
 test('profile preference UI JavaScript parses and preserves guest separation',async()=>{
   const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-  const scripts=[...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)].map(m=>m[1].trim()).filter(Boolean);
+  const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1].trim()).filter(Boolean);
   assert.equal(scripts.length,1);
   assert.doesNotThrow(()=>new Script(scripts[0]));
-  assert.match(html,/LoopGuide\\?\\.rankPlaces\\(items,guideSettings\\(\\),currentCategory/);
-  assert.match(html,/isProfileMode\\(\\)\\?getProfile\\(\\)\\.preferenceSettings:\\{\\}/);
+  assert.match(html,/LoopGuide\?\.rankPlaces\(items,guideSettings\(\),currentCategory/);
+  assert.match(html,/isProfileMode\(\)\?getProfile\(\)\.preferenceSettings:\{\}/);
   assert.match(html,/preference_settings/);
 });
