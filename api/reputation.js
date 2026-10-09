@@ -65,6 +65,54 @@ async function verifyUser(token) {
   return user && user.id ? user : null;
 }
 
+// Public clients never decide whether an action earned reputation points.
+// The author, content type and category must all be verified against durable data.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function fetchEvidence(table, filters, fields) {
+  const query = Object.entries(filters)
+    .map(([name, value]) => name + '=eq.' + encodeURIComponent(value)).join('&');
+  const response = await serviceRequest(
+    table + '?' + query + '&select=' + fields + '&limit=1', { method: 'GET' }
+  );
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows[0] || null : null;
+}
+
+async function verifyReputationEvidence(userId, eventType, sourceKey) {
+  // Local-only reviews/likes are not independently verifiable and do not
+  // earn server-side points until a persistent first-party record exists.
+  const reaction = eventType === 'interaction' && sourceKey.startsWith('community-like:');
+  const id = reaction ? sourceKey.slice('community-like:'.length) : sourceKey;
+  if (!UUID_PATTERN.test(id)) return null;
+
+  if (eventType === 'recommendation' || eventType === 'community_post') {
+    const post = await fetchEvidence('community_posts', { id, user_id: userId }, 'category,topic');
+    if (!post) return null;
+    const isRecommendation = post.topic === 'Recommendation' || post.topic === 'Local find';
+    if (isRecommendation !== (eventType === 'recommendation')) return null;
+    return { category: safeCategory(post.category), sourceKey: id };
+  }
+
+  if (eventType === 'reply') {
+    const reply = await fetchEvidence('community_replies', { id, user_id: userId }, 'post_id');
+    if (!reply) return null;
+    const parent = await fetchEvidence('community_posts', { id: reply.post_id }, 'category');
+    return parent ? { category: safeCategory(parent.category), sourceKey: id } : null;
+  }
+
+  if (reaction) {
+    const like = await fetchEvidence('community_reactions', {
+      post_id: id, user_id: userId
+    }, 'post_id');
+    if (!like) return null;
+    const parent = await fetchEvidence('community_posts', { id }, 'category');
+    return parent ? { category: safeCategory(parent.category), sourceKey: 'community-like:' + id } : null;
+  }
+
+  return null;
+}
+
 async function readEvents(userId) {
   const response = await serviceRequest(
     'reputation_events?user_id=eq.' + encodeURIComponent(userId) +
@@ -167,8 +215,6 @@ module.exports = async function handler(req, res) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       const eventType = clean(body.eventType, 40).toLowerCase();
       const sourceKey = safeKey(body.sourceKey);
-      const category = safeCategory(body.category);
-
       if (!Object.prototype.hasOwnProperty.call(EVENT_POINTS, eventType)) {
         return res.status(400).json({ ok: false, error: 'That reputation event is not supported.' });
       }
@@ -176,7 +222,15 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ ok: false, error: 'A source is required for reputation evidence.' });
       }
 
-      const added = await addEvent(user.id, eventType, sourceKey, category);
+      const evidence = await verifyReputationEvidence(user.id, eventType, sourceKey);
+      if (!evidence) {
+        return res.status(422).json({
+          ok: false,
+          error: 'Verified contribution required before Loop Reputation points can be awarded.'
+        });
+      }
+
+      const added = await addEvent(user.id, eventType, evidence.sourceKey, evidence.category);
       const rows = await readEvents(user.id);
       const summary = summarize(rows);
       await saveProfileScore(user.id, summary.score);
