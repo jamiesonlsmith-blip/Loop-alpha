@@ -7,7 +7,7 @@ const uuid=s=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.
 const me=()=>typeof currentAuthUser!=='undefined'?currentAuthUser:null;
 const db=()=>typeof loopAuthClient!=='undefined'?loopAuthClient:null;
 const cache=new Map();
-const state={threads:[],messages:[],cards:new Map(),thread:null,loading:false,unread:0};
+const state={threads:[],messages:[],cards:new Map(),thread:null,loading:false,unread:0,blocked:[]};
 const icons=['🌿','🌻','🐬','🎬','🎨','🌎','☕','⭐'];
 const avatarAllowed=value=>{
   const raw=String(value||'');
@@ -40,8 +40,17 @@ function ownAppearance(){
  if(share)share.checked=!!p.shareCommunities;
  if(allow)allow.checked=p.allowMessages!==false;
 }
+let lastAccountId=null;
 const originalApply=window.applyAccountState;
-if(typeof originalApply==='function')window.applyAccountState=function(){const r=originalApply.apply(this,arguments);ownAppearance();return r;};
+if(typeof originalApply==='function')window.applyAccountState=function(){
+ const r=originalApply.apply(this,arguments);
+ const id=me()?.id||null;
+ if(id!==lastAccountId){
+  lastAccountId=id;state.threads=[];state.messages=[];state.thread=null;state.blocked=[];state.unread=0;cache.clear();updateBadges();
+  if(id)setTimeout(refreshUnread,0);
+ }
+ ownAppearance();return r;
+};
 async function cardsFor(ids){
  const valid=[...new Set(ids.filter(uuid))].filter(id=>!cache.has(id));
  if(!valid.length)return;
@@ -187,7 +196,9 @@ async function loadInbox(){
   const response=await client.from('loop_message_threads').select('id,member_a,member_b,created_at,updated_at').or('member_a.eq.'+id+',member_b.eq.'+id).order('updated_at',{ascending:false}).limit(60);
   if(response.error)throw response.error;
   state.threads=response.data||[];
-  await cardsFor(state.threads.map(otherPerson));
+  const blockedResponse=await client.from('loop_blocks').select('blocked_id').eq('blocker_id',id).limit(100);
+  state.blocked=blockedResponse.error?[]:(blockedResponse.data||[]).map(x=>x.blocked_id);
+  await cardsFor([...state.threads.map(otherPerson),...state.blocked]);
   if(state.threads.length){
    const m=await client.from('loop_messages').select('id,thread_id,sender_id,body,created_at,read_at').in('thread_id',state.threads.map(t=>t.id)).order('created_at',{ascending:false}).limit(400);
    if(m.error)throw m.error;
@@ -212,7 +223,7 @@ function showMessageUI(){
       avatarHTML(c?.avatar_url,c?.display_name||'Member','loop-message-avatar')+
       '<span class="loop-message-person"><b>'+escHtml(c?.display_name||'Loop member')+'</b><small>'+escHtml(last?.body||'Tap to write your first message')+'</small></span>'+
       (unread?'<span class="loop-unread-count">'+unread+'</span>':'')+'</button>';
-    }).join('')+'</section>';
+    }).join('')+'</section>'+(state.blocked.length?'<section class="loop-msg-card"><h3>Blocked members</h3><p class="loop-messages-muted">Blocked members cannot exchange messages with you.</p>'+state.blocked.map(id=>'<div class="loop-report-controls"><span>'+escHtml(cardFor(id)?.display_name||'Loop member')+'</span><button type="button" data-msg-action="unblock" data-id="'+escHtml(id)+'">Unblock</button></div>').join('')+'</section>':'');
   return;
  }
  const t=state.threads.find(x=>x.id===state.thread);if(!t){state.thread=null;return showMessageUI();}
@@ -258,6 +269,12 @@ function updateBadges(){
   card.innerHTML='<article class="loop-notify-message"><span>✉</span><span><strong>'+ (state.unread?state.unread+' unread message'+(state.unread===1?'':'s'):'Your messages')+'</strong><br><small>Private member questions and replies</small></span><button type="button" data-msg-action="inbox-open">Open Messages</button></article>';
  }
 }
+async function unblockMember(id){
+ if(!uuid(id)||!me())return;
+ const {error}=await db().from('loop_blocks').delete().eq('blocker_id',me().id).eq('blocked_id',id);
+ if(error){notify('Could not unblock this member.');return;}
+ await loadInbox();notify('Member unblocked');
+}
 async function blockMember(id){
  if(!uuid(id)||!me()||!confirm('Block this member? They will not be able to send you more messages, and you will not be able to message them.'))return;
  const {error}=await db().from('loop_blocks').insert({blocker_id:me().id,blocked_id:id});
@@ -300,6 +317,7 @@ function bindEvents(){
   if(key==='thread'){state.thread=id;await markRead(id);showMessageUI();await refreshUnread();return;}
   if(key==='refresh'||key==='reload'){await loadInbox();return;}
   if(key==='block'){await blockMember(id);return;}
+  if(key==='unblock'){await unblockMember(id);return;}
   if(key==='report'){const target=$('loopReportMessageId');if(target)target.value=id;$('loopReportDialog').showModal();return;}
  });
  document.addEventListener('change',event=>{if(event.target.id==='loopAvatarUpload')uploadAvatar(event.target.files?.[0]);});
