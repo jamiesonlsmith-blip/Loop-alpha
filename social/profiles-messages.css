@@ -73,3 +73,9 @@ dialog.loop-public-dialog{width:min(92vw,480px);border:0;border-radius:26px;padd
 .loop-notify-message button{margin-left:auto;border:0;background:#156d48;color:#fff;border-radius:10px;padding:9px 12px;font-weight:800}
 .loop-msg-badge{font-size:10px;display:inline-flex;align-items:center;justify-content:center;background:#c54633;color:white;min-width:18px;height:18px;padding:0 5px;border-radius:10px;margin-left:4px}
 @media(max-width:620px){.loop-public-inner{padding:20px}.loop-welcome-avatar{width:56px;height:56px}.loop-welcome-first{padding-right:65px}.loop-own-avatar-row{align-items:flex-start}.loop-profile-settings{margin-left:0;margin-right:0}}
+
+.c1-post .c1-post-head{grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.c1-post .c1-post-head .loop-contributor{width:100%}
+.c1-post .c1-post-head .loop-contributor .c1-byline{display:block;min-width:0}
+#loopReportDialog select,#loopReportDialog textarea{display:block;width:100%;box-sizing:border-box;border-radius:11px;border:1px solid #cbded1;padding:11px;margin:6px 0 14px;font:inherit}
+.loop-member-message:disabled{opacity:.55;cursor:default}
