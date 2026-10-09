@@ -1,7 +1,8 @@
-const CACHE_NAME = 'loop-alpha-v20';
+const CACHE_NAME = 'loop-alpha-v21';
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/brain/loop-guide.js',
   '/manifest.webmanifest',
   '/games/',
   '/games/index.html',
