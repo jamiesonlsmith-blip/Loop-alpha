@@ -250,7 +250,31 @@ function searchIntent(value = '', category = '') {
   if (/\brooftop\b|\broof[ -]?top\b/.test(q)) {
     return { key: 'rooftop', exactQueries: unique([q, 'rooftop bar', 'rooftop lounge', 'rooftop restaurant']), relatedQueries: [], allowRelated: false };
   }
-  if (/\bbrunch\b/.test(q)) return { key: 'brunch', exactQueries: unique([q, 'brunch', 'brunch restaurant', 'breakfast restaurant']), relatedQueries: [], allowRelated: false };
+  if (/\\bfast[ -]?food\\b|\\bquick[ -]?bites?\\b|\\bdrive[ -]?thru\\b/.test(q)) return {
+    key: 'fast-food', exactQueries: ['fast food', 'quick service restaurant', 'casual eatery'],
+    relatedQueries: ['restaurant'], allowRelated: true, relatedTypes: ['restaurant','fast_food'],
+    relatedPattern: /restaurant|fast.food|casual.eatery|burger|takeaway|diner/i,
+    relatedNote: 'Restaurant nearby · Fast-food service not verified'
+  };
+  if (/\\bburgers?\\b|\\bhamburgers?\\b/.test(q)) return {
+    key: 'burgers', exactQueries: ['burger restaurant', 'hamburger restaurant'],
+    relatedQueries: ['fast food'], allowRelated: true, relatedTypes:['restaurant','fast_food'],
+    relatedPattern: /burger|hamburger|restaurant|fast.food/i,
+    relatedNote: 'Related restaurant · Burgers not verified'
+  };
+  if (/\\bsteak(?:house|s)?\\b/.test(q)) return {
+    key: 'steak', exactQueries: ['steakhouse', 'steak restaurant'],
+    relatedQueries: ['restaurant'], allowRelated: true, relatedTypes:['restaurant'],
+    relatedPattern: /restaurant|steak|grill/i,
+    relatedNote: 'Related restaurant · Steak menu not verified'
+  };
+  if (/\\b(?:dessert|ice cream|bakery|pastries)\\b/.test(q)) return {
+    key: 'desserts', exactQueries: ['dessert', 'bakery', 'ice cream'],
+    relatedQueries: ['cafe'], allowRelated: true, relatedTypes:['restaurant','cafe'],
+    relatedPattern: /dessert|bakery|ice.cream|pastry|cafe/i,
+    relatedNote: 'Related cafe · Desserts not verified'
+  };
+  if (/\\bbrunch\\b/.test(q)) return { key: 'brunch', exactQueries: unique([q, 'brunch', 'brunch restaurant', 'breakfast restaurant']), relatedQueries: [], allowRelated: false };
   if (/\bsushi\b/.test(q)) return { key: 'sushi', exactQueries: unique([q, 'sushi restaurant', 'japanese restaurant']), relatedQueries: [], allowRelated: false };
   if (/\bvegan\b/.test(q)) return { key: 'vegan', exactQueries: unique([q, 'vegan restaurant']), relatedQueries: [], allowRelated: false };
   if (/\bcoffee\b|\bcafe\b/.test(q)) return { key: 'coffee', exactQueries: unique([q, 'coffee', 'cafe']), relatedQueries: [], allowRelated: false };
@@ -291,7 +315,10 @@ function hardIntentGroups(value = '') {
   if (/\bvegan\b/.test(q)) groups.push(/\bvegan\b/i);
   if (/\bbrunch\b/.test(q)) groups.push(/\bbrunch\b|\bbreakfast\b/i);
   if (/\bcoffee\b|\bcafe\b/.test(q)) groups.push(/\bcoffee\b|\bcafe\b|\bcafé\b/i);
-  if (/\bpizza\b/.test(q)) groups.push(/\bpizza\b|\bpizzeria\b/i);
+  if (/\\bpizza\\b/.test(q)) groups.push(/\\bpizza\\b|\\bpizzeria\\b/i);
+  if (/\\bfast[ -]?food\\b|\\bquick[ -]?bite\\b/.test(q)) groups.push(/fast.food|quick.service|casual.eatery|burger|takeaway/i);
+  if (/\\bburgers?\\b|\\bhamburgers?\\b/.test(q)) groups.push(/burger|hamburger/i);
+  if (/\\bsteak(?:house|s)?\\b/.test(q)) groups.push(/steak|grill/i);
 
   if (/\bbody shop\b|\bauto body\b|\bcollision(?: repair)?\b|\bpanel beat(?:er|ing)\b/.test(q)) groups.push(/\bbody shop\b|\bauto body\b|\bcollision\b|\bpanel beat(?:er|ing)\b|\bcoachwork\b/i);
   if (/\bbrake(?:s| service| repair)?\b|\bbraking\b/.test(q)) groups.push(/\bbrake\b|\bbrakes\b|\bbraking\b/i);
@@ -711,7 +738,11 @@ async function searchCuisineGooglePlaces(intent, lat, lon, radiusMiles) {
 function overtureTerms(intent, query) {
   if (intent.cuisine) return [intent.cuisine.key];
   const categoryTerms = {
-    'restaurant-general': ['restaurant', 'cafe', 'food_court'],
+    'restaurant-general': ['restaurant', 'casual_eatery', 'cafe', 'food_court'],
+    'fast-food': ['fast_food', 'casual_eatery', 'quick_service_restaurant', 'burger_restaurant'],
+    burgers: ['burger_restaurant', 'hamburger', 'burger', 'casual_eatery'],
+    steak: ['steakhouse', 'steak', 'grill_restaurant'],
+    desserts: ['dessert', 'bakery', 'ice_cream_shop', 'pastry_shop'],
     'brake-service': ['automotive_repair', 'car_repair', 'auto_repair', 'brake'],
     'body-shop': ['auto_body', 'body_shop', 'collision_repair', 'automotive_repair'],
     'oil-change': ['oil_change', 'automotive_repair', 'car_repair'],
