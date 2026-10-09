@@ -1,45 +1,134 @@
-"""Build polished Loop home-screen icons from the approved source artwork.
+"""Build full-bleed Loop launcher PNGs from the user-approved ring artwork.
 
-The committed JPEG is a compact transport master of the approved Loop design;
-output PNGs are generated for Android/iOS/PWA sizing. Never redraw the rings.
+The source is an approved WebP master. Preserve the gold interlocking rings,
+but eliminate the source's outer white canvas and glass-like framing.
 """
 import base64
 import io
 from pathlib import Path
-from PIL import Image, ImageDraw
 
-ROOT=Path(__file__).resolve().parent.parent
-SOURCE=ROOT / 'icons' / 'loop-approved-source.b64'
-DEST=ROOT / 'icons'
-SRC=Image.open(io.BytesIO(base64.b64decode(''.join(SOURCE.read_text().split())))).convert('RGB')
-RESAMPLE=Image.Resampling.LANCZOS
+from PIL import Image, ImageFilter
 
-def rounded_source(size):
-    image=SRC.resize((size,size),RESAMPLE).convert('RGBA')
-    # The approved artwork contains white outside its rounded green tile.
-    # Keep the gold interlocking rings intact but remove the exterior white
-    # so the Android launcher, not the JPEG, supplies the outer shape.
-    mask=Image.new('L',(size,size),0)
-    pen=ImageDraw.Draw(mask)
-    # Match the source tile corner radius without clipping the yellow mark.
-    pen.rounded_rectangle((0,0,size-1,size-1),radius=round(size*.155),fill=255)
-    canvas=Image.new('RGBA',(size,size),(4,84,52,255))
-    canvas.paste(image,(0,0),mask)
+ROOT = Path(__file__).resolve().parent.parent
+ICONS = ROOT / "icons"
+SOURCE = ICONS / "loop-approved-source.b64"
+SRC = Image.open(io.BytesIO(base64.b64decode("".join(SOURCE.read_text().split())))).convert("RGB")
+assert SRC.width == SRC.height, "Loop artwork must be square"
+RESAMPLE = Image.Resampling.LANCZOS
+
+# A coherent, full-bleed green field. No baked-in rounded rectangle or white
+# padding: Android/iOS launchers apply their own platform icon mask.
+TOP_LEFT = (16, 141, 74)
+TOP_RIGHT = (1, 112, 60)
+BOTTOM_LEFT = (2, 75, 39)
+BOTTOM_RIGHT = (1, 55, 32)
+
+
+def green_background(size):
+    canvas = Image.new("RGB", (size, size))
+    pixels = canvas.load()
+    scale = max(size - 1, 1)
+    for y in range(size):
+        fy = y / scale
+        for x in range(size):
+            fx = x / scale
+            pixels[x, y] = tuple(
+                round(
+                    TOP_LEFT[k] * (1 - fx) * (1 - fy)
+                    + TOP_RIGHT[k] * fx * (1 - fy)
+                    + BOTTOM_LEFT[k] * (1 - fx) * fy
+                    + BOTTOM_RIGHT[k] * fx * fy
+                )
+                for k in range(3)
+            )
     return canvas
 
-def save(size,name):
-    image=rounded_source(size)
-    image.save(DEST/name,format='PNG',optimize=True)
 
-for px,name in [(180,'icon-180.png'),(192,'icon-192.png'),(512,'icon-512.png')]:
-    save(px,name)
+def clean_original():
+    n = SRC.width
+    color = SRC.load()
+    alpha = Image.new("L", (n, n), 0)
+    mask = alpha.load()
+    for y in range(n):
+        for x in range(n):
+            red, green, blue = color[x, y]
+            edge = min(x, y, n - 1 - x, n - 1 - y)
+            # Feather green background into the original away from the edge.
+            # This eliminates the bright rim and square-within-a-square look.
+            blend = min(1.0, max(0.0, (edge - 2) / (57 * n / 192)))
+            blend = blend * blend * (3 - 2 * blend)
+            # Retain every part of the approved gold speech bubbles, even tails.
+            gold = (
+                red > 115 and red > green * 0.78
+                and red > blue * 1.10 and green > blue * 0.9
+                and edge > 16 * n / 192
+            )
+            if gold:
+                blend = 1
+            # Strip remaining light pixels belonging to the old outer canvas.
+            if (
+                not gold and edge < 36 * n / 192
+                and red > 160 and green > 180 and blue > 170
+            ):
+                blend = 0
+            mask[x, y] = round(255 * blend)
+    alpha = alpha.filter(ImageFilter.GaussianBlur(0.7 * n / 192))
+    return Image.composite(SRC, green_background(n), alpha)
 
-# Adaptive Android icon mask can shrink the visible region to a central 66%.
-# Give the symbol breathing room, with green artwork behind the mask edge.
-background=Image.new('RGBA',(512,512),(3,91,58,255))
-master=rounded_source(384)
-background.alpha_composite(master,((512-384)//2,(512-384)//2))
-background.save(DEST/'icon-maskable-512.png',format='PNG',optimize=True)
-for name in ['icon-180.png','icon-192.png','icon-512.png','icon-maskable-512.png']:
-    x=Image.open(DEST/name);assert x.mode=='RGBA';assert x.size[0]==int(name.split('-')[-1].split('.')[0])
-    print(name, x.size)
+
+CLEAN = clean_original()
+
+
+def save_standard(size, name):
+    CLEAN.resize((size, size), RESAMPLE).convert("RGBA").save(
+        ICONS / name, format="PNG", optimize=True
+    )
+
+
+for size, name in [
+    (180, "icon-180.png"),
+    (192, "icon-192.png"),
+    (512, "icon-512.png"),
+]:
+    save_standard(size, name)
+
+# Android adaptive icons mask the outer third on certain launchers. Draw only
+# the gold rings in the central safe region over a CONTINUOUS green background,
+# not an embedded mini-square carrying its own white/bright border.
+n = CLEAN.width
+gold_mask = Image.new("L", (n, n), 0)
+p = CLEAN.load()
+m = gold_mask.load()
+for y in range(n):
+    for x in range(n):
+        red, green, blue = p[x, y]
+        if red > 100 and red > green * 0.79 and red > blue * 1.11 and green > blue * 0.95:
+            opacity = max(0, min(255, int((red - 90) / 60 * 255)))
+        else:
+            opacity = 0
+        m[x, y] = opacity
+
+gold_mask = gold_mask.filter(ImageFilter.GaussianBlur(0.65 * n / 192))
+adaptive = green_background(512)
+art_size = 409  # Fit gold-ring artwork inside Android's adaptive safe circle.
+position = (512 - art_size) // 2
+adaptive.paste(
+    CLEAN.resize((art_size, art_size), RESAMPLE),
+    (position, position),
+    gold_mask.resize((art_size, art_size), RESAMPLE),
+)
+adaptive.convert("RGBA").save(ICONS / "icon-maskable-512.png", format="PNG", optimize=True)
+
+for size, name in [
+    (180, "icon-180.png"),
+    (192, "icon-192.png"),
+    (512, "icon-512.png"),
+    (512, "icon-maskable-512.png"),
+]:
+    icon = Image.open(ICONS / name)
+    assert icon.size == (size, size) and icon.mode == "RGBA", name
+    # No pale/white corners (or transparent framing) on any target asset.
+    for corner in [(0, 0), (size - 1, 0), (0, size - 1), (size - 1, size - 1)]:
+        red, green, blue, opacity = icon.getpixel(corner)
+        assert opacity == 255 and green > red * 1.5 and green > blue * 1.4, (name, corner)
+    print(name, icon.size, "full-bleed green edges verified")

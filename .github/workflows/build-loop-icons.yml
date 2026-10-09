@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - design/approved-android-ios-icon-20261009
+      - fix/loop-v25-seamless-app-icon-20261009
     paths:
       - 'icons/loop-approved-source.b64'
       - 'scripts/build_loop_icons.py'
@@ -39,7 +40,12 @@ jobs:
               image=Image.open('icons/'+name).convert('RGBA')
               assert image.size==(size,size), name
               assert image.getpixel((size//2,size//2))[3]==255
-              print(name,'valid',image.size)
+              # The perimeter should be green, opaque and not a white halo.
+              for x,y in [(0,0),(size-1,0),(0,size-1),(size-1,size-1),
+                          (0,size//2),(size-1,size//2),(size//2,0),(size//2,size-1)]:
+                  r,g,b,a=image.getpixel((x,y))
+                  assert a==255 and g>r*1.2 and g>b*1.2,(name,x,y,(r,g,b,a))
+              print(name,'valid and full-bleed',image.size)
           PY
       - name: Commit generated launcher assets
         run: |
