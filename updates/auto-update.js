@@ -15,6 +15,7 @@
   let updateReady = false;
   let postponed = false;
   let activationRequested = false;
+  let hadController = Boolean(navigator.serviceWorker.controller);
   let reloadScheduled = false;
 
   function isEditing() {
@@ -153,6 +154,7 @@
       watchInstalling(registration.installing);
       if (registration.waiting && navigator.serviceWorker.controller) discoveredUpdate();
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController) {hadController = true;return;} // First install is not an update.
         if (activationRequested) window.location.reload();
         else if (!postponed) {
           updateReady = true;
