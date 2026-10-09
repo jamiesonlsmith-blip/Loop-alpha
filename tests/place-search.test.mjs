@@ -339,3 +339,11 @@ test('maps September 2026 Overture taxonomy and aliases to actual categories', (
   });
   assert.equal(cuisineMatchType(nonFood,searchIntent('Haitian food','restaurants'),'Haitian food'),null);
 });
+
+test('understands everyday food choices as restaurant intents',()=>{
+  assert.equal(searchIntent('new fast food place','restaurants').key,'fast-food');
+  assert.equal(searchIntent('burgers','restaurants').key,'burgers');
+  assert.equal(searchIntent('steakhouse','restaurants').key,'steak');
+  assert.equal(searchIntent('desserts','restaurants').key,'desserts');
+  assert.ok(overtureTerms(searchIntent('new fast food place','restaurants'),'new fast food place').includes('casual_eatery'));
+});

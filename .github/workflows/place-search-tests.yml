@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'api/places.js'
+      - 'brain/loop-guide.js'
+      - 'tests/loop-guide.test.mjs'
       - 'index.html'
       - 'sw.js'
       - 'tests/global-map.test.mjs'
@@ -14,6 +16,8 @@ on:
     branches: [main]
     paths:
       - 'api/places.js'
+      - 'brain/loop-guide.js'
+      - 'tests/loop-guide.test.mjs'
       - 'index.html'
       - 'sw.js'
       - 'tests/global-map.test.mjs'
