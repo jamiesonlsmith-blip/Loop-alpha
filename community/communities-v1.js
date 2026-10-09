@@ -117,11 +117,12 @@
     box.innerHTML=posts.map(p=>{
       const n=counts(p.id),own=p.user_id===user()?.id,joined=state.joined.has(p.category);
       const replies=n.replies.slice().sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-      return '<article class="c1-post"><div class="c1-post-head"><span class="c1-avatar">'+safe(initialsFor(p.author_name))+'</span>'+
-        '<span class="c1-byline"><b>'+safe(p.author_name)+'</b><small>'+categoryIcon(p.category)+' '+safe(categoryLabel(p.category))+
-        (p.area?' · '+safe(p.area):'')+' · '+displayDate(p.created_at)+'</small></span><span class="c1-post-kind">'+safe(p.topic)+'</span></div>'+
+      return '<article class="c1-post"><div class="c1-post-head"><button type="button" class="loop-contributor" data-loop-member="'+latestId(p.user_id)+'">'+
+        '<span class="loop-mini-member" data-loop-member-avatar="'+latestId(p.user_id)+'">'+safe(initialsFor(p.author_name))+'</span>'+
+        '<span class="c1-byline"><b>'+safe(p.author_name)+'</b><span class="loop-rep" data-loop-reputation="'+latestId(p.user_id)+'"></span><small>'+categoryIcon(p.category)+' '+safe(categoryLabel(p.category))+
+        (p.area?' · '+safe(p.area):'')+' · '+displayDate(p.created_at)+'</small></span></button><span class="c1-post-kind">'+safe(p.topic)+'</span></div>'+
         '<div class="c1-post-body">'+safe(p.content)+'</div>'+
-        (replies.length?'<div class="c1-post-replies">'+replies.map(r=>'<div class="c1-reply"><b>'+safe(r.author_name)+'</b>'+safe(r.content)+'</div>').join('')+'</div>':'')+
+        (replies.length?'<div class="c1-post-replies">'+replies.map(r=>'<div class="c1-reply"><button type="button" class="loop-reply-author" data-loop-member="'+latestId(r.user_id)+'">'+safe(r.author_name)+'</button>'+safe(r.content)+'</div>').join('')+'</div>':'')+
         '<div class="c1-post-actions"><button class="'+(n.liked?'on':'')+'" data-action="like" data-id="'+latestId(p.id)+'">'+(n.liked?'♥':'♡')+' Helpful · '+n.likes.length+'</button>'+
         '<button data-action="reply" data-id="'+latestId(p.id)+'">💬 Reply · '+n.replies.length+'</button>'+
         '<button class="'+(n.saved?'on':'')+'" data-action="save" data-id="'+latestId(p.id)+'">'+(n.saved?'✓ Saved':'♧ Save')+'</button>'+
@@ -132,6 +133,7 @@
     }).join('');
     const note=document.getElementById('c1Note');
     note.textContent=state.tab==='Nearby'?'Nearby matches your profile’s general home area, not GPS distance.':state.tab==='Trending'?'Trending reflects recent helpful reactions and replies, not inflated sample counts.':'Recommendations are shared by actual Loop members. Helpfulness and relevance matter more than popularity.';
+    if(window.LoopProfiles?.enrichCommunity)window.LoopProfiles.enrichCommunity(posts,state.replies);
   }
   function draw(){renderInterests();renderMine();renderTabs();setError(state.error);renderFeed()}
   async function loadData(){
