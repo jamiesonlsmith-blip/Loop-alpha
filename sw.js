@@ -1,5 +1,5 @@
 // Loop PWA background app-shell management. Do not delete browser storage.
-const CACHE_NAME = 'loop-alpha-v28';
+const CACHE_NAME = 'loop-alpha-v29';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -18,7 +18,8 @@ const APP_SHELL = [
   '/icons/icon-180.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/icons/icon-maskable-512.png'
+  '/icons/icon-maskable-512.png',
+  '/icons/notification-badge-96.png'
 ];
 
 self.addEventListener('install', event => {
