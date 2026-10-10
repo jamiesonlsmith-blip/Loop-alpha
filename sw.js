@@ -1,5 +1,5 @@
 // Loop PWA background app-shell management. Do not delete browser storage.
-const CACHE_NAME = 'loop-alpha-v30';
+const CACHE_NAME = 'loop-alpha-v31';
 const APP_SHELL = [
   '/',
   '/index.html',
