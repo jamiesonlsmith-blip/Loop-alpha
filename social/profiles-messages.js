@@ -78,13 +78,14 @@ async function enrichCommunity(posts=[],replies=[]){
  refreshContributorNodes();
 }
 function profileMarkup(card){
- const own=card.id===me()?.id,communities=Array.isArray(card.communities)?card.communities:[];
+ const own=card.id===me()?.id,communities=Array.isArray(card.communities)?card.communities:[],age=Number(card.age_years);
  const members=communities.length?'<div class="loop-public-section"><h3>Communities they share</h3><div class="loop-public-chips">'+communities.map(x=>'<span>'+escHtml(x.replace(/-/g,' '))+'</span>').join('')+'</div></div>':'';
  return '<div class="loop-public-inner"><div class="loop-public-head"><small>Loop member · Public profile</small><button type="button" class="loop-close" data-loop-close aria-label="Close profile">×</button></div>'+
    avatarHTML(card.avatar_url,card.display_name,'loop-public-avatar')+
    '<h2 class="loop-public-title">'+escHtml(card.display_name)+'</h2>'+
    '<div class="loop-public-rep">★ '+Number(card.reputation_score||0).toFixed(1)+'/10 · Loop Reputation</div>'+
    '<div class="loop-public-section"><h3>Interests</h3><p>'+escHtml(card.public_interests||'No interests shared yet')+'</p></div>'+
+    (Number.isInteger(age)&&age>=18&&age<=120?'<div class="loop-public-section"><h3>About</h3><p>Age '+age+'</p></div>':'')+
    members+
    '<div class="loop-public-foot"><button type="button" class="loop-member-message" data-loop-contact="'+escHtml(card.id)+'" '+(own||!card.allow_messages?'disabled':'')+'>'+(own?'Your profile':!card.allow_messages?'Not accepting messages':'✉ Ask a question')+'</button></div>'+
    '<p class="loop-public-note">Only shared interests and communities appear here. Email, work details and private preferences stay private. Message people respectfully about their contributions.</p></div>';
@@ -335,6 +336,6 @@ function init(){
  createProfileControls();setupDialogs();buildMessages();bindEvents();ownAppearance();
  refreshUnread();
 }
-window.LoopProfiles={enrichCommunity,openMember,openMessagesWith,refreshUnread,avatarHTML};
+window.LoopProfiles={enrichCommunity,openMember,openMessagesWith,refreshUnread,avatarHTML,clearOwnCard:()=>{if(me()?.id)cache.delete(me().id);}};
 init();
 })();
