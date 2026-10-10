@@ -1881,7 +1881,7 @@
         try{
           const {error:profileError}=await loopAuthClient.from('profiles').update({display_name:data.name,home_area:data.location,work_title:data.role,tastes:data.tastes,age_years:data.age,share_age:data.shareAge}).eq('id',currentAuthUser.id);if(profileError)throw profileError;
           if(data.email&&data.email!==currentAuthUser.email){const {error:emailError}=await loopAuthClient.auth.updateUser({email:data.email});if(emailError)throw emailError;notify('Profile updated — check your email to confirm the address change')}
-          const {data:userData}=await loopAuthClient.auth.getUser();if(userData?.user)await syncAuthenticatedUser(userData.user);document.getElementById('profileEditor').close();notify('Profile updated');return;
+          const {data:userData}=await loopAuthClient.auth.getUser();if(userData?.user)await syncAuthenticatedUser(userData.user);window.LoopProfiles?.clearOwnCard?.();document.getElementById('profileEditor').close();notify('Profile updated');return;
         }catch(error){notify(error?.message||'Profile could not be updated');return}
       }
       localStorage.setItem(PROFILE_KEY,JSON.stringify({...getProfile(),...data,loopRadiusMiles:preferredLoopRadius()}));localStorage.setItem(ACCOUNT_MODE_KEY,'profile');localStorage.removeItem(SIGNED_OUT_KEY);applyAccountState();document.getElementById('profileEditor').close();notify('Profile updated')
