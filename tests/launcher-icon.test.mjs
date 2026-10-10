@@ -15,7 +15,7 @@ test('approved Loop icon is configured for standard and maskable PWA launchers',
   assert.match(adaptive.src,/icon-maskable-512\.png\?v=25$/);
   assert.match(html,/rel="apple-touch-icon"[^>]+href="\/icons\/icon-180\.png\?v=25"/);
   assert.match(html,/rel="manifest"[^>]+href="\/manifest\.webmanifest\?v=25"/);
-  assert.match(sw,/loop-alpha-v30/);
+  assert.match(sw,/loop-alpha-v31/);
 });
 
 test('every actual launcher icon is a well-formed PNG at its advertised resolution',async()=>{
