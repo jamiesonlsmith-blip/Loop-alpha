@@ -298,6 +298,7 @@
 </style>
 <link rel="stylesheet" href="/community/communities-v1.css">
 <link rel="stylesheet" href="/social/profiles-messages.css">
+<link rel="stylesheet" href="/social/profile-layer.css">
 </head>
 <body>
   <div id="loopWallpaper" class="loop-wallpaper active" aria-hidden="true"></div>
@@ -1727,7 +1728,7 @@
       currentAuthUser=user;
       let row=null;
       try{
-        const result=await loopAuthClient.from('profiles').select('display_name,home_area,work_title,tastes,avatar_url,reputation_score,home_loop_radius_miles,preference_settings,public_interests,share_communities,allow_messages').eq('id',user.id).maybeSingle();
+        const result=await loopAuthClient.from('profiles').select('display_name,home_area,work_title,tastes,avatar_url,reputation_score,home_loop_radius_miles,preference_settings,public_interests,share_communities,allow_messages,age_years,share_age').eq('id',user.id).maybeSingle();
         if(!result.error)row=result.data;
       }catch{}
       const meta=user.user_metadata||{},cached={
@@ -1740,6 +1741,7 @@
         reputationScore:Math.max(0,Math.min(10,Number(row?.reputation_score)||0)),
         loopRadiusMiles:Math.max(30,Math.min(100,Number(row?.home_loop_radius_miles)||30)),
         avatarUrl:row?.avatar_url||'',publicInterests:row?.public_interests||'',
+        age:row?.age_years??null,shareAge:!!row?.share_age,
         shareCommunities:!!row?.share_communities,allowMessages:row?.allow_messages!==false,
         userId:user.id,
         authenticated:true
@@ -1864,14 +1866,20 @@
       document.getElementById('editRole').value=data.role||'';
       document.getElementById('editLocation').value=data.location||'';
       document.getElementById('editTastes').value=data.tastes||'';
+      const ageInput=document.getElementById('editAge');if(ageInput)ageInput.value=data.age??'';
+      const shareAgeInput=document.getElementById('editShareAge');if(shareAgeInput)shareAgeInput.checked=!!data.shareAge;
       document.getElementById('profileEditor').showModal()
     }
     async function saveProfile(event){
       event.preventDefault();
-      const data={name:document.getElementById('editName').value.trim(),email:document.getElementById('editEmail').value.trim(),role:document.getElementById('editRole').value.trim(),location:document.getElementById('editLocation').value.trim(),tastes:document.getElementById('editTastes').value.trim()};
+      const rawAge=document.getElementById('editAge')?.value.trim()||'';
+      const age=rawAge===''?null:Number(rawAge);
+      if(rawAge!==''&&(!Number.isInteger(age)||age<18||age>120)){notify('Age must be between 18 and 120, or leave it blank.');return;}
+      const shareAge=age!==null&&!!document.getElementById('editShareAge')?.checked;
+      const data={name:document.getElementById('editName').value.trim(),email:document.getElementById('editEmail').value.trim(),role:document.getElementById('editRole').value.trim(),location:document.getElementById('editLocation').value.trim(),tastes:document.getElementById('editTastes').value.trim(),age,shareAge};
       if(authBackendReady&&loopAuthClient&&currentAuthUser){
         try{
-          const {error:profileError}=await loopAuthClient.from('profiles').update({display_name:data.name,home_area:data.location,work_title:data.role,tastes:data.tastes}).eq('id',currentAuthUser.id);if(profileError)throw profileError;
+          const {error:profileError}=await loopAuthClient.from('profiles').update({display_name:data.name,home_area:data.location,work_title:data.role,tastes:data.tastes,age_years:data.age,share_age:data.shareAge}).eq('id',currentAuthUser.id);if(profileError)throw profileError;
           if(data.email&&data.email!==currentAuthUser.email){const {error:emailError}=await loopAuthClient.auth.updateUser({email:data.email});if(emailError)throw emailError;notify('Profile updated — check your email to confirm the address change')}
           const {data:userData}=await loopAuthClient.auth.getUser();if(userData?.user)await syncAuthenticatedUser(userData.user);document.getElementById('profileEditor').close();notify('Profile updated');return;
         }catch(error){notify(error?.message||'Profile could not be updated');return}
@@ -1895,5 +1903,6 @@
   </script>
 <script src="/community/communities-v1.js"></script>
 <script src="/social/profiles-messages.js"></script>
+<script src="/social/profile-layer.js"></script>
 </body>
 </html>
