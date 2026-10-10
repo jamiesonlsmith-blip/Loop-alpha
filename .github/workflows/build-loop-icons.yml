@@ -4,6 +4,7 @@ on:
     branches:
       - design/approved-android-ios-icon-20261009
       - fix/loop-v25-seamless-app-icon-20261009
+      - fix/loop-android-notification-badge-20261009
     paths:
       - 'icons/loop-approved-source.b64'
       - 'scripts/build_loop_icons.py'
@@ -27,7 +28,7 @@ jobs:
           python-version: '3.12'
       - name: Install image toolkit
         run: python -m pip install --disable-pip-version-check Pillow==11.3.0
-      - name: Generate Android, iOS and maskable icons
+      - name: Generate launcher icons and transparent Android notification badge
         run: python scripts/build_loop_icons.py
       - name: Verify dimensions and color
         run: |
@@ -46,12 +47,16 @@ jobs:
                   r,g,b,a=image.getpixel((x,y))
                   assert a==255 and g>r*1.2 and g>b*1.2,(name,x,y,(r,g,b,a))
               print(name,'valid and full-bleed',image.size)
+          badge=Image.open('icons/notification-badge-96.png').convert('RGBA')
+          assert badge.size==(96,96)
+          assert badge.getpixel((0,0))[3]==0
+          assert badge.getchannel('A').getextrema()==(0,255)
           PY
       - name: Commit generated launcher assets
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add icons/icon-180.png icons/icon-192.png icons/icon-512.png icons/icon-maskable-512.png
+          git add icons/icon-180.png icons/icon-192.png icons/icon-512.png icons/icon-maskable-512.png icons/notification-badge-96.png
           if ! git diff --cached --quiet; then
             git commit -m 'Build polished Loop launcher PNGs from approved artwork'
             git push
