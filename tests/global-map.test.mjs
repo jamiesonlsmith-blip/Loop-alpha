@@ -32,7 +32,7 @@ test('map markers use the same result lat/lon returned by the place search API',
   assert.match(html, /const y=Number\(item\.lat\),x=Number\(item\.lon\)/);
   assert.match(html, /function render\(items,meta=\{\}\)\{[^\n]{0,230}showMapResults\(items,activePlaceSearch\)/);
   assert.match(html, /function renderNoPlaceMatches\(term,scope,data=\{\}\)\{showMapResults\(\[\],activePlaceSearch\)/);
-  assert.match(sw, /loop-alpha-v28/);
+  assert.match(sw, /loop-alpha-v29/);
 });
 
 
