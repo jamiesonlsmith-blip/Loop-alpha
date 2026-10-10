@@ -18,7 +18,7 @@ test('profile enhancement and original app scripts parse and are installed in or
   assert.ok(html.indexOf('/social/profiles-messages.js')<html.indexOf('/social/profile-layer.js'));
   assert.match(html,/href="\/social\/profile-layer.css"/);
   for(const asset of ['/social/profile-layer.js','/social/profile-layer.css'])assert.ok(sw.includes(asset),asset);
-  assert.match(sw,/loop-alpha-v30/);
+  assert.match(sw,/loop-alpha-v31/);
 });
 test('first layer offers concise identity, home, interests, communities and one edit action',()=>{
   for(const heading of ['About','Your preferences','My communities','Your Home Loop']){
@@ -26,6 +26,9 @@ test('first layer offers concise identity, home, interests, communities and one 
   }
   assert.match(layer,/hero\.after\(overview\)/);
   assert.match(layer,/identity'\)\?\.append\(editButton\)/);
+  assert.doesNotMatch(layer,/data-profile-edit=/,'all editing should go through the hero Edit profile button');
+  assert.doesNotMatch(layer,/data-profile-edit="preferences"/);
+  assert.doesNotMatch(layer,/data-profile-edit="communities"/);
   assert.match(layer,/grid\.before\(more\);more\.append\(grid\)/);
   assert.match(layer,/Reputation details, Home Loop & activity/);
   assert.match(css,/\.loop-profile-overview/);
@@ -39,7 +42,7 @@ test('photo, public-sharing and community controls are moved behind Edit Profile
   assert.match(layer,/\.delete\(\)\.eq\('user_id',uid\)\.eq\('category',id\)/);
   assert.match(layer,/\.insert\(\{user_id:uid,category:id\}\)/);
   assert.match(layer,/busy=true/);
-  assert.match(layer,/data-profile-edit="communities"/);
+  assert.match(layer,/id='loopProfileCommunitiesEdit'/);
   assert.match(layer,/openTasteStudio/);
 });
 test('age is optional, cannot be disclosed without explicit opt-in, and requires authenticated owner update',()=>{
