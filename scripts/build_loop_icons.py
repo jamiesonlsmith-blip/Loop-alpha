@@ -133,6 +133,7 @@ for size, name in [
         assert opacity == 255 and green > red * 1.5 and green > blue * 1.4, (name, corner)
     print(name, icon.size, "full-bleed green edges verified")
 
+# Generate the notification badge after launcher assets from the same approved source.
 # Android's small status-bar notification symbol is a separate asset from
 # the colorful launcher/large-notification icon. A full-bleed colored square
 # in the badge option becomes an unreadable solid square on Android.
