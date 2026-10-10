@@ -92,8 +92,8 @@
     overview.id='loopProfileOverview';
     overview.className='loop-profile-overview';
     overview.innerHTML='<section class="loop-overview-panel loop-overview-about"><h2>About</h2><p id="loopOverviewRole"></p><p id="loopOverviewAge" hidden></p><p id="loopOverviewIntro" class="loop-overview-muted"></p></section>'+
-      '<section class="loop-overview-panel"><div class="loop-overview-head"><h2>Your preferences</h2><button type="button" data-profile-edit="preferences">Edit</button></div><p id="loopOverviewTastes" class="loop-overview-muted"></p></section>'+
-      '<section class="loop-overview-panel"><div class="loop-overview-head"><h2>My communities</h2><button type="button" data-profile-edit="communities">Manage</button></div><div id="loopOverviewCommunities"><p class="loop-overview-muted">Loading your communities…</p></div></section>'+
+      '<section class="loop-overview-panel"><div class="loop-overview-head"><h2>Your preferences</h2></div><p id="loopOverviewTastes" class="loop-overview-muted"></p></section>'+
+      '<section class="loop-overview-panel"><div class="loop-overview-head"><h2>My communities</h2></div><div id="loopOverviewCommunities"><p class="loop-overview-muted">Loading your communities…</p></div></section>'+
       '<section class="loop-overview-panel loop-overview-home"><h2>Your Home Loop</h2><p id="loopOverviewHome"></p></section>';
     hero.after(overview);
     const editButton=$('profileEditButton');
@@ -130,16 +130,7 @@
     renderEditorCommunities();
     refresh();
   }
-  function editor(spot){
-    if(!signed())return;
-    if(typeof openEditor==='function')openEditor();
-    refresh();loadCommunities();
-    if(spot==='communities')setTimeout(()=>$('loopProfileCommunitiesEdit')?.scrollIntoView({behavior:'smooth',block:'start'}),50);
-    if(spot==='preferences')setTimeout(()=>$('editTastes')?.focus(),60);
-  }
   document.addEventListener('click',event=>{
-    const trigger=event.target.closest('[data-profile-edit]');
-    if(trigger){editor(trigger.dataset.profileEdit);return;}
     const option=event.target.closest('[data-profile-community]');
     if(option){toggleCommunity(option.dataset.profileCommunity);return;}
     if(event.target.closest('#loopEditGuide')){
