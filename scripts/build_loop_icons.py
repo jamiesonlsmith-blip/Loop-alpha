@@ -132,3 +132,30 @@ for size, name in [
         red, green, blue, opacity = icon.getpixel(corner)
         assert opacity == 255 and green > red * 1.5 and green > blue * 1.4, (name, corner)
     print(name, icon.size, "full-bleed green edges verified")
+
+# Generate the notification badge after launcher assets from the same approved source.
+# Android's small status-bar notification symbol is a separate asset from
+# the colorful launcher/large-notification icon. A full-bleed colored square
+# in the badge option becomes an unreadable solid square on Android.
+# Preserve the approved interlocking rings as pure white alpha-only artwork;
+# Android automatically tints monochrome notification badges.
+badge_size = 96
+source_mask = gold_mask.point(lambda opacity: 255 if opacity >= 70 else 0)
+bounds = source_mask.getbbox()
+assert bounds, "Approved Loop rings were not found in source artwork"
+crop = gold_mask.crop(bounds)
+inner_size = 80
+scale = min(inner_size / crop.width, inner_size / crop.height)
+width = round(crop.width * scale)
+height = round(crop.height * scale)
+alpha = crop.resize((width, height), RESAMPLE).filter(ImageFilter.MaxFilter(3))
+badge = Image.new("RGBA", (badge_size, badge_size), (255, 255, 255, 0))
+position = ((badge_size - width) // 2, (badge_size - height) // 2)
+badge.paste((255, 255, 255, 255), (*position, position[0] + width, position[1] + height), alpha)
+badge.save(ICONS / "notification-badge-96.png", format="PNG", optimize=True)
+check = Image.open(ICONS / "notification-badge-96.png").convert("RGBA")
+assert check.size == (96, 96)
+assert all(check.getpixel(point)[3] == 0 for point in [(0, 0), (95, 0), (0, 95), (95, 95)])
+coverage = sum(1 for a in check.getchannel("A").getdata() if a > 100)
+assert 500 < coverage < 6000, "Notification badge needs recognizable transparent rings"
+print("notification-badge-96.png", check.size, "transparent monochrome rings verified")

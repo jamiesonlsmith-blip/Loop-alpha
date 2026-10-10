@@ -61,7 +61,7 @@ test('member safety includes block, report, and server-side send rate limits',()
 test('in-app notices and installed app updates include new files',()=>{
   assert.match(js,/refreshUnread/);
   assert.match(js,/loopInboxActivity/);
-  assert.match(sw,/loop-alpha-v28/);
+  assert.match(sw,/loop-alpha-v29/);
   for(const asset of ['/social/profiles-messages.css','/social/profiles-messages.js'])assert.ok(sw.includes(asset));
   assert.match(sw,/social\\\//);
 });
