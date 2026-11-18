@@ -65,7 +65,7 @@ test('tapping a category starts a profile-tailored query without requiring typin
   const source=await readFile(new URL('../loop2/discovery-ui.js',import.meta.url),'utf8');
   const calls=[],input={value:'',addEventListener(){}};
   const ids={
-    loop2DiscoveryBanner:{hidden:true},
+    loop2DiscoveryBanner:{hidden:true,after(node){this.tastes=node;}},
     loop2DiscoveryTitle:{textContent:''},
     loop2DiscoveryDetails:{textContent:''},
     loop2DiscoveryCustomize:{textContent:'',onclick:null},
@@ -76,7 +76,15 @@ test('tapping a category starts a profile-tailored query without requiring typin
   const context=createContext({
     document:{
       getElementById:id=>ids[id]||null,
-      querySelectorAll:()=>[]
+      querySelectorAll:()=>[],
+      createElement:tag=>({
+        tagName:tag,hidden:false,children:[],dataset:{},textContent:'',
+        setAttribute(name,val){this[name]=val;},
+        addEventListener(name,fn){this.listener=fn;},
+        replaceChildren(...items){this.children=[...items];},
+        append(...items){this.children.push(...items);},
+        querySelectorAll(){return this.children.filter(child=>child.tagName==='button');}
+      })
     },
     setTimeout:fn=>fn(),
     window:{
@@ -95,4 +103,13 @@ test('tapping a category starts a profile-tailored query without requiring typin
   assert.equal(input.value,'italian restaurant');
   assert.deepEqual(calls,['italian restaurant']);
   assert.equal(ids.loop2DiscoveryTitle.textContent,'Restaurants picked for your tastes');
+  assert.equal(ids.loop2DiscoveryBanner.tastes.children[1].textContent,'Italian');
+  assert.equal(ids.loop2DiscoveryBanner.tastes.children[1]['aria-pressed'],'true');
+});
+
+test('category-first Loop 2.0 shows recommendations before map and ignores stale map selections',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  assert.ok(html.indexOf('id="results" class="cards category-results"')<html.indexOf('id="loopMapShell"'));
+  assert.match(html,/selectedMapCenter&&!window\.Loop2Discovery\?\.isAuto\(\)/);
+  assert.match(html,/areaLabel:\(selectedMapCenter&&!window\.Loop2Discovery\?\.isAuto\(\)\)/);
 });
