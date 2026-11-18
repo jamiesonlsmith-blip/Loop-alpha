@@ -24,7 +24,7 @@
     ],
     parks:[
       ['walking','Walking trails','trail|walking|path'],['picnics','Picnics','picnic'],
-      ['playgrounds','Playgrounds','playground'],['family-friendly','Kid friendly','family|kid.friendly|children|playground'],['swimming-pools','Pools & splash pads','swim|pool|splash.pad|water.park'],['dog-parks','Dog friendly','dog.park|dog.friendly'],
+      ['playgrounds','Playgrounds','playground'],['family-friendly','Kid friendly','family|kid.friendly|children|playground'],['swimming-pools','Pools & splash pads','swim|pools?|splash.pad|water.park'],['dog-parks','Dog friendly','dog.parks?|dog.friendly'],
       ['scenic','Scenic','scenic|lake|river|nature']
     ],
     auto:[
