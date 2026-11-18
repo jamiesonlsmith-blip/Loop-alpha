@@ -1,9 +1,11 @@
 // Loop PWA background app-shell management. Do not delete browser storage.
-const CACHE_NAME = 'loop-alpha-v31';
+const CACHE_NAME = 'loop-alpha-v32';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/brain/loop-guide.js',
+  '/loop2/discovery-ui.css',
+  '/loop2/discovery-ui.js',
   '/community/communities-v1.css',
   '/community/communities-v1.js',
   '/social/profiles-messages.css',
@@ -65,7 +67,7 @@ self.addEventListener('fetch', event => {
   if (url.pathname.startsWith('/api/')) return;
 
   const isPage = request.mode === 'navigate';
-  const isCode = /^\/(?:brain\/|updates\/|community\/|social\/)/.test(url.pathname) ||
+  const isCode = /^\/(?:brain\/|loop2\/|updates\/|community\/|social\/)/.test(url.pathname) ||
     url.pathname === '/manifest.webmanifest';
   if (isPage || isCode) {
     event.respondWith((async () => {

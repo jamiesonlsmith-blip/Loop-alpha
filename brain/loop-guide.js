@@ -4,7 +4,7 @@
   'use strict';
   const OPTIONS = {
     restaurants: [
-      ['pizza','Pizza','pizza|pizzeria'], ['burgers','Burgers','burger|hamburger'],
+      ['italian','Italian','italian|pasta|trattoria|risotto'], ['pizza','Pizza','pizza|pizzeria'], ['burgers','Burgers','burger|hamburger'],
       ['fast-food','Quick bites','fast.food|quick.service|casual.eatery|takeaway'],
       ['steak','Steak','steak|steakhouse'], ['seafood','Seafood','seafood|fish|oyster'],
       ['desserts','Desserts','dessert|bakery|ice.cream|pastry'],
@@ -24,7 +24,7 @@
     ],
     parks:[
       ['walking','Walking trails','trail|walking|path'],['picnics','Picnics','picnic'],
-      ['playgrounds','Playgrounds','playground'],['dog-parks','Dog friendly','dog.park|dog.friendly'],
+      ['playgrounds','Playgrounds','playground'],['family-friendly','Kid friendly','family|kid.friendly|children|playground'],['swimming-pools','Pools & splash pads','swim|pools?|splash.pad|water.park'],['dog-parks','Dog friendly','dog.parks?|dog.friendly'],
       ['scenic','Scenic','scenic|lake|river|nature']
     ],
     auto:[
@@ -100,7 +100,7 @@
       (prefs.preferLocal && !CHAINS.test(name) ? 'Not one of the common chains Loop screens for; independent ownership is not verified.' : '');
     return {place,extra,direct,reason};
   }
-  function rankPlaces(items, rawPreferences, category, query='',activity={}) {
+  function rankPlaces(items, rawPreferences, category, query='',activity={},opts={}) {
     if (!Array.isArray(items))return [];
     const prefs=normalize(rawPreferences),cat=categoryFor(category,query);
     const isGeneric = /^(?:restaurants?|food|places to eat|eat|nearby|something nearby|fun|games|shopping|stores|retail)$/i.test(query.trim());
@@ -121,8 +121,10 @@
       const name=asText(item?.loop_name||item?.name).replace(/[^a-z0-9]+/g,'');
       return !exclusions.some(excluded=>name.includes(excluded.replace(/[^a-z0-9]+/g,'')));
     }).map((place,index)=>({ ...scorePlace(place,prefs,cat,query,activity),index }));
-    // Direct matches always outrank related suggestions; do not override explicit intent.
-    scored.sort((a,b)=>b.direct-a.direct || b.extra-a.extra || a.index-b.index);
+    // Direct matches outrank related fallbacks; discovery may consider verified peers.
+    scored.sort((a,b)=>b.direct-a.direct ||
+      (opts.discovery?((peerEvidence(b.place)?.rank||0)-(peerEvidence(a.place)?.rank||0)):0) ||
+      b.extra-a.extra || a.index-b.index);
     return scored.map(({place,reason,extra})=>({
       ...place,
       loop_guide_reason: reason,
@@ -131,7 +133,56 @@
       loop_guide_source:'profile-preferences'
     }));
   }
-  const guide={OPTIONS,normalize,categoryFor,rankPlaces};
+  // Explicit private interests, never behavioral guesses or medical profile signals.
+  function withProfileTastes(raw,tastes='') {
+    const prefs=normalize(raw), text=asText(tastes);
+    if(!text)return prefs;
+    for(const [category,options] of Object.entries(OPTIONS)){
+      if(prefs.categories[category]?.length)continue;
+      const picks=options.filter(([id,label,pattern])=>
+        new RegExp('\\b(?:'+pattern.replace(/\./g,'[\\s_-]?')+')\\b','i').test(text)
+      ).map(([id])=>id);
+      prefs.categories[category]=[...new Set(picks)].slice(0,16);
+    }
+    return prefs;
+  }
+  const DEFAULT_QUERIES={
+    restaurants:'restaurant',parks:'park',medical:'medical clinic',
+    'home-services':'home services',auto:'auto repair',retail:'shopping',
+    travel:'travel ideas','fun-games':'fun',movies:'movies',music:'music'
+  };
+  const DISCOVERY_QUERIES={
+    restaurants:{italian:'italian restaurant',pizza:'pizza restaurant',burgers:'burger restaurant',seafood:'seafood restaurant',
+      steak:'steakhouse',sushi:'sushi restaurant',haitian:'haitian restaurant',vegetarian:'vegetarian restaurant',
+      'family-friendly':'family friendly restaurant',outdoors:'outdoor dining',quiet:'quiet restaurant',upscale:'fine dining'},
+    parks:{'swimming-pools':'park with swimming pool','family-friendly':'family park with playground',
+      'dog-parks':'dog park',playgrounds:'park with playground',walking:'walking trail park',picnics:'picnic park',scenic:'scenic park'},
+    'fun-games':{bowling:'bowling',arcades:'arcade','go-karts':'go kart','escape-rooms':'escape room','mini-golf':'mini golf'},
+    auto:{maintenance:'auto repair',brakes:'brake repair',tires:'tire shop',body:'auto body shop'},
+    retail:{fashion:'clothing store',sneakers:'shoe store',jewelry:'jewelry store',furniture:'furniture store'},
+    travel:{hotels:'hotels','rental-cars':'rental cars',airports:'airport services'},
+    'home-services':{plumbing:'plumber',electrical:'electrician',ac:'AC repair',cleaning:'cleaning service',handyman:'handyman'}
+  };
+  function discoveryPlan(rawPreferences,category) {
+    const prefs=normalize(rawPreferences),selected=(prefs.categories[category]||[]).slice(0,4),options=OPTIONS[category]||[];
+    const labels=selected.map(id=>options.find(o=>o[0]===id)?.[1]||'').filter(Boolean),first=selected[0];
+    const query=(DISCOVERY_QUERIES[category]?.[first]||
+      (first?(options.find(o=>o[0]===first)?.[1]||'')+' '+(category==='restaurants'?'restaurant':category==='parks'?'park':''):null)||
+      DEFAULT_QUERIES[category]||'nearby places').trim();
+    return {category,query,defaultQuery:DEFAULT_QUERIES[category]||'nearby places',labels,personalized:selected.length>0};
+  }
+  // This gate intentionally returns null until a verified first-party evidence source exists.
+  function peerEvidence(place) {
+    const e=place?.loop_peer_evidence;
+    if(!e||e.source!=='loop-verified'||!Number.isInteger(e.recommendationCount)||
+       e.recommendationCount<1||e.recommendationCount>100000 ||
+       !Number.isFinite(e.averageExperience)||e.averageExperience<0||e.averageExperience>10||
+       !Number.isFinite(e.averageReputation)||e.averageReputation<0||e.averageReputation>10)return null;
+    const count=e.recommendationCount;
+    const rank=(e.averageExperience*.65+e.averageReputation*.35)*Math.min(1,count/5);
+    return {count,rank,averageExperience:e.averageExperience,averageReputation:e.averageReputation};
+  }
+  const guide={OPTIONS,normalize,categoryFor,rankPlaces,withProfileTastes,discoveryPlan,peerEvidence};
   root.LoopGuide=guide;
   if(typeof module!=='undefined' && module.exports)module.exports=guide;
 })(typeof window!=='undefined'?window:globalThis);
