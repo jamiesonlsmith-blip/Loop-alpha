@@ -57,12 +57,46 @@
     return banner;
   }
   const banner=ensureBanner();
+  const tastes=document.createElement('div');
+  tastes.id='loop2TasteChoices';
+  tastes.className='loop2-taste-choices';
+  tastes.hidden=true;
+  tastes.setAttribute('aria-label','Your saved category preferences');
+  banner.after(tastes);
+  function runPersonalTaste(kind,query){
+    autoContext={category:kind,query};
+    $('q').value=query;
+    if(typeof window.syncCategoryPromptState==='function')window.syncCategoryPromptState();
+    tastes.querySelectorAll('button[data-loop-query]').forEach(button=>
+      button.setAttribute('aria-pressed',String(button.dataset.loopQuery===query)));
+    $('status').textContent='Finding '+query+' within your Loop…';
+    window.findPlaces();
+  }
   function personalizeCategory(kind){
     if(!headerText[kind]||!$('categoryPage')?.classList.contains('active'))return;
     const member=Boolean(window.isProfileMode?.());
     const plan=guide.discoveryPlan(window.guideSettings(),kind);
-    autoContext={category:kind,query:plan.query};
     banner.hidden=false;
+    const options=guide.OPTIONS[kind]||[], selected=(window.guideSettings().categories[kind]||[]).slice(0,5);
+    tastes.replaceChildren();
+    tastes.hidden=!(member&&selected.length);
+    if(!tastes.hidden){
+      const heading=document.createElement('strong');
+      heading.textContent='Your tastes';
+      tastes.append(heading);
+      selected.forEach(id=>{
+        const label=options.find(item=>item[0]===id)?.[1]||id;
+        const filtered=guide.normalize({categories:{[kind]:[id]}});
+        const query=guide.discoveryPlan(filtered,kind).query;
+        const button=document.createElement('button');
+        button.type='button';
+        button.textContent=label;
+        button.dataset.loopQuery=query;
+        button.setAttribute('aria-pressed',String(query===plan.query));
+        button.addEventListener('click',()=>runPersonalTaste(kind,query));
+        tastes.append(button);
+      });
+    }
     $('loop2DiscoveryTitle').textContent=member&&plan.personalized
       ?headerText[kind]+' picked for your tastes'
       :'Discover '+headerText[kind];
@@ -76,11 +110,7 @@
     const tune=$('loop2DiscoveryCustomize');
     tune.textContent=member?'Tune my tastes':'Create a profile';
     tune.onclick=member?()=>window.openTasteStudio(kind):()=>window.startProfileSetup();
-    const input=$('q');
-    input.value=plan.query;
-    if(typeof window.syncCategoryPromptState==='function')window.syncCategoryPromptState();
-    $('status').textContent='Finding '+(member&&plan.personalized?'personalized ':'')+headerText[kind]+' suggestions…';
-    window.findPlaces();
+    runPersonalTaste(kind,plan.query);
   }
   window.openCategory=function(kind){
     const token=++navigationToken;
@@ -88,6 +118,7 @@
     baseOpenCategory(kind);
     if(kind==='all'||!headerText[kind]){
       banner.hidden=true;
+      tastes.hidden=true;
       return;
     }
     // Let the existing category view and map render before loading discoveries.
@@ -96,7 +127,7 @@
       personalizeCategory(kind);
     },70);
   };
-  $('q')?.addEventListener('input',()=>{autoContext=null;});
+  $('q')?.addEventListener('input',()=>{autoContext=null;tastes.querySelectorAll('button[data-loop-query]').forEach(b=>b.setAttribute('aria-pressed','false'));});
   $('categoryPrompts')?.addEventListener('click',()=>{autoContext=null;});
   if(typeof baseApplyAccountState==='function'){
     window.applyAccountState=function(){
