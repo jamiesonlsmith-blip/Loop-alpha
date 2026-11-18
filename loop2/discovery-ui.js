@@ -11,6 +11,7 @@
   const baseSaveGuideSettings=window.saveGuideSettings;
   const baseRankPlaces=guide.rankPlaces;
   let navigationToken=0,autoContext=null;
+  window.Loop2Discovery={isAuto:()=>Boolean(autoContext),refreshTiles:()=>renderHomeTiles()};
 
   // Private profile tastes are only used for the signed-in member. Guest never inherits them.
   window.guideSettings=function(){
@@ -68,7 +69,7 @@
     $('loop2DiscoveryDetails').textContent=kind==='medical'
       ?'Browse nearby care listings; verify credentials, insurance, and suitability before choosing.'
       :member&&plan.personalized
-        ?'Starting with '+plan.labels.join(', ')+'. Verified Loop peer reviews will influence ordering as they become available.'
+        ?'Your preferences: '+plan.labels.join(' · ')+'. Showing real places; verified community reviews will influence ranking as they become available.'
         :member
           ?'Showing nearby options. Add category tastes to your profile for more personal results.'
           :'Showing general options. Create a profile to make these recommendations yours.';
