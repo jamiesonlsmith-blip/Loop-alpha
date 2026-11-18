@@ -36,13 +36,16 @@ test('never silently interrupt active searches or typed member forms',()=>{
 });
 
 test('new service worker waits for safe activation and preserves all local user storage',()=>{
-  assert.match(sw,/CACHE_NAME = 'loop-alpha-v31'/);
+  assert.match(sw,/CACHE_NAME = 'loop-alpha-v32'/);
   assert.match(sw,/if \(!self\.registration\.active\) await self\.skipWaiting\(\)/);
   assert.match(sw,/LOOP_APPLY_UPDATE/);
   assert.match(sw,/self\.clients\.claim\(\)/);
   assert.match(sw,/if \(url\.pathname\.startsWith\('\/api\/'\)\) return/);
   assert.match(sw,/const isCode =/);
   assert.ok(sw.includes('/community/communities-v1.js'));
+  assert.ok(sw.includes('/loop2/discovery-ui.js'));
+  assert.ok(sw.includes('/loop2/discovery-ui.css'));
+  assert.match(sw,/loop2\\\//);
   assert.match(sw,/cache: 'no-store'/);
   assert.doesNotMatch(sw,/localStorage|indexedDB|deleteDatabase/);
   assert.doesNotMatch(update,/localStorage\.clear|indexedDB\.deleteDatabase/);
