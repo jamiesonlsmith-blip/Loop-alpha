@@ -18,7 +18,7 @@ test('profile enhancement and original app scripts parse and are installed in or
   assert.ok(html.indexOf('/social/profiles-messages.js')<html.indexOf('/social/profile-layer.js'));
   assert.match(html,/href="\/social\/profile-layer.css"/);
   for(const asset of ['/social/profile-layer.js','/social/profile-layer.css'])assert.ok(sw.includes(asset),asset);
-  assert.match(sw,/loop-alpha-v31/);
+  assert.match(sw,/loop-alpha-v32/);
 });
 test('first layer offers concise identity, home, interests, communities and one edit action',()=>{
   for(const heading of ['About','Your preferences','My communities','Your Home Loop']){
