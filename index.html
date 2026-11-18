@@ -299,6 +299,7 @@
 <link rel="stylesheet" href="/community/communities-v1.css">
 <link rel="stylesheet" href="/social/profiles-messages.css">
 <link rel="stylesheet" href="/social/profile-layer.css">
+<link rel="stylesheet" href="/loop2/discovery-ui.css">
 </head>
 <body>
   <div id="loopWallpaper" class="loop-wallpaper active" aria-hidden="true"></div>
@@ -418,7 +419,7 @@
 <div class="section-head home-category-head">
 <div>
 <h2>Explore your Loop</h2>
-<p>Start with what you're trying to decide.</p>
+<p>Tap a category and Loop starts discovering places for your tastes.</p>
 </div>
 </div>
 
@@ -1400,7 +1401,7 @@
       movies:{icon:'▶',eyebrow:'Movies & TV',title:'What are you in the mood to watch?',description:'Tell Loop the mood, era, genre or type of story — your taste matters more than a generic top-ten list.',placeholder:'Dark 90s sci-fi with suspense…',prompts:['Good gangster movie','Dark sci-fi','Courtroom drama','Scary with jump scares','Bingeable crime series']},
       music:{icon:'♫',eyebrow:'Music',title:'What do you want to hear?',description:'Discover artists and music around your tastes, eras and moods — plus what people in your Loop are into.',placeholder:'New R&B with a 90s feel…',prompts:['90s-style R&B','New hip-hop','Techno for the gym','Smooth neo-soul','Live jazz nearby']}
     };
-    function openCategory(kind){currentCategory=categoryConfigs[kind]?kind:'all';if(currentCategory!=='all')recordInterestSignal(currentCategory);const cfg=categoryConfigs[currentCategory];closeMenu();hidePrimaryViews();categoryPage.classList.add('active');setActiveNav('navHome');document.getElementById('categoryIcon').innerHTML=loopCategoryIconSvg(currentCategory);document.getElementById('categoryEyebrow').textContent=cfg.eyebrow;document.getElementById('categoryTitle').textContent=cfg.title;document.getElementById('categoryDescription').textContent=cfg.description;q.placeholder=cfg.placeholder;q.value='';results.innerHTML='';statusEl.textContent='Choose a suggestion or ask naturally.';renderGuideNotice();document.getElementById('categoryPrompts').innerHTML=cfg.prompts.map(p=>`<button type="button" data-prompt="${esc(p)}" onclick="useCategoryPrompt('${p.replace(/'/g,"&#39;")}',this)">${esc(p)}</button>`).join('');syncCategoryPromptState();scrollTo(0,0);document.getElementById('loopMapShell').hidden=(currentCategory==='movies'||currentCategory==='music');ensureDiscoveryMap();setTimeout(()=>q.focus(),180)}
+    function openCategory(kind){currentCategory=categoryConfigs[kind]?kind:'all';if(currentCategory!=='all')recordInterestSignal(currentCategory);const cfg=categoryConfigs[currentCategory];closeMenu();hidePrimaryViews();categoryPage.classList.add('active');setActiveNav('navHome');document.getElementById('categoryIcon').innerHTML=loopCategoryIconSvg(currentCategory);document.getElementById('categoryEyebrow').textContent=cfg.eyebrow;document.getElementById('categoryTitle').textContent=cfg.title;document.getElementById('categoryDescription').textContent=cfg.description;q.placeholder=cfg.placeholder;q.value='';results.innerHTML='';statusEl.textContent='Choose a suggestion or ask naturally.';renderGuideNotice();document.getElementById('categoryPrompts').innerHTML=cfg.prompts.map(p=>`<button type="button" data-prompt="${esc(p)}" onclick="useCategoryPrompt('${p.replace(/'/g,"&#39;")}',this)">${esc(p)}</button>`).join('');syncCategoryPromptState();scrollTo(0,0);document.getElementById('loopMapShell').hidden=(currentCategory==='movies'||currentCategory==='music');ensureDiscoveryMap();if(currentCategory==='all')setTimeout(()=>q.focus(),180)}
     function openUniversalSearch(){openCategory('all')}
     function syncCategoryPromptState(){const value=String(q.value||'').trim().toLowerCase();document.querySelectorAll('#categoryPrompts button').forEach(button=>button.classList.toggle('active',String(button.dataset.prompt||'').trim().toLowerCase()===value))}
     function useCategoryPrompt(text,button){q.value=text;syncCategoryPromptState();if(button)button.blur();findPlaces()}
@@ -1901,6 +1902,7 @@
     applyLoopCategoryIcons();
     initializeLoopApp();
   </script>
+<script src="/loop2/discovery-ui.js"></script>
 <script src="/community/communities-v1.js"></script>
 <script src="/social/profiles-messages.js"></script>
 <script src="/social/profile-layer.js"></script>
