@@ -149,7 +149,7 @@
   const DEFAULT_QUERIES={
     restaurants:'restaurant',parks:'park',medical:'medical clinic',
     'home-services':'home services',auto:'auto repair',retail:'shopping',
-    travel:'travel ideas','fun-games':'fun activities',movies:'movies',music:'music'
+    travel:'travel ideas','fun-games':'fun',movies:'movies',music:'music'
   };
   const DISCOVERY_QUERIES={
     restaurants:{italian:'italian restaurant',pizza:'pizza restaurant',burgers:'burger restaurant',seafood:'seafood restaurant',
