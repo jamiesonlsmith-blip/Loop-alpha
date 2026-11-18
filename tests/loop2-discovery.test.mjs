@@ -59,3 +59,40 @@ test('category UI is loaded as a separate valid script without losing the univer
   assert.match(ui,/window\.findPlaces\(\)/);
   assert.match(sw,/loop2\/discovery-ui\.js/);
 });
+
+test('tapping a category starts a profile-tailored query without requiring typing',async()=>{
+  const {createContext}=await import('node:vm');
+  const source=await readFile(new URL('../loop2/discovery-ui.js',import.meta.url),'utf8');
+  const calls=[],input={value:'',addEventListener(){}};
+  const ids={
+    loop2DiscoveryBanner:{hidden:true},
+    loop2DiscoveryTitle:{textContent:''},
+    loop2DiscoveryDetails:{textContent:''},
+    loop2DiscoveryCustomize:{textContent:'',onclick:null},
+    categoryPage:{classList:{contains:()=>true}},
+    categoryPrompts:{addEventListener(){}},
+    q:input,status:{textContent:''}
+  };
+  const context=createContext({
+    document:{
+      getElementById:id=>ids[id]||null,
+      querySelectorAll:()=>[]
+    },
+    setTimeout:fn=>fn(),
+    window:{
+      LoopGuide:guide,
+      openCategory:()=>{},
+      guideSettings:()=>guide.normalize({categories:{restaurants:['italian']}}),
+      findPlaces:()=>calls.push(input.value),
+      isProfileMode:()=>true,
+      getProfile:()=>({tastes:'Italian'}),
+      applyAccountState:()=>{},
+      saveGuideSettings:async()=>{}
+    }
+  });
+  new Script(source).runInContext(context);
+  context.window.openCategory('restaurants');
+  assert.equal(input.value,'italian restaurant');
+  assert.deepEqual(calls,['italian restaurant']);
+  assert.equal(ids.loop2DiscoveryTitle.textContent,'Restaurants picked for your tastes');
+});
